@@ -1,0 +1,28 @@
+.sidecart {
+    height: 100%;
+}
+
+.cartItem {
+    border-bottom: 1px solid #e0e0e0;
+    padding: 10px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.cartItem > * {
+    margin-right: 5px;
+}
+
+.itemName {
+    font-weight: bold;
+}
+
+.active {
+    background-color: #508abd;
+}
+
+.itemModButtons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
