@@ -1,0 +1,21 @@
+{
+  "name": "backend",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@loglayer/mixin-wide-events": "^1.2.1",
+    "@loglayer/transport-simple-pretty-terminal": "^3.2.0",
+    "@pydantic/logfire-node": "^0.18.1",
+    "loglayer": "^9.3.0",
+    "redis": "^6.0.0",
+    "redis-om": "^0.4.7",
+    "reflect-metadata": "^0.2.2"
+  }
+}

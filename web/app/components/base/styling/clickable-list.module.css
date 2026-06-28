@@ -1,0 +1,19 @@
+/* 1. SideList: Top-Left (Spans first 8 rows) */
+.sideList {
+    grid-column: 1;
+    grid-row: 1; 
+    min-height: 0; /* Allow it to shrink below content size */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.active {
+    background-color: #baabff; /* Highlight active item */
+}
+
+.listItem {
+    border: 1px solid #ccc;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin: 10px;
+}
