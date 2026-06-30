@@ -2,9 +2,10 @@ import { log } from "../index";
 import { Controller, Get, Post } from "../decorator";
 import { signJWT, verifyJWT } from "../jwt";
 import { userRepository } from "../model/users.model";
+import { BaseController } from "./primitives/base.controller";
 
 @Controller("/users")
-export class UserController {
+export class UserController extends BaseController {
     @Get("/", 0)
     getAllUsers(_req?: Request) {
         const users = userRepository.search().return.all();

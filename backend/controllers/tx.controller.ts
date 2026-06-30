@@ -11,11 +11,17 @@ import { error } from "console";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
     typescript: true,
 });
+import { BaseController } from "./primitives/base.controller";
 
 
 
 @Controller("/tx")
-export class TXController {
+export class TXController extends BaseController {
+
+    constructor() {
+        super("tx");
+    }
+
     protected transactions = new Map<string, Producer>();
 
     // async newTx(): Promise<string> {

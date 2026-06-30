@@ -3,7 +3,11 @@ import { Menu } from '../model/menu.model';
 import { log } from '../index';
 
 @Controller("/menu")
-export class MenuController {
+export class MenuController extends BaseController{
+    constructor() {
+        super("menu");
+    }
+
     @Get("/", 0)
     async getAllItems(_req?: Request) {
         const data = await Menu.getAll();
