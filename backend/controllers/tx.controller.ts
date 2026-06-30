@@ -5,11 +5,17 @@ import { kafka } from "../events/kafka";
 import { randomUUIDv7 } from "bun";
 import type { Producer } from "kafkajs";
 import { Partitioners } from "kafkajs";
+import { BaseController } from "./primitives/base.controller";
 
 
 
 @Controller("/tx")
-export class TXController {
+export class TXController extends BaseController {
+
+    constructor() {
+        super("tx");
+    }
+
     protected transactions = new Map<string, Producer>();
 
     async newTx(): Promise<string> {

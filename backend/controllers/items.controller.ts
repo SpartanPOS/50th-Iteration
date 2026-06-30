@@ -1,9 +1,14 @@
 import { log } from "../index";
 import { Controller, Get } from "../decorator";
 import { Item } from "../model/items.model";
+import { BaseController } from "./primitives/base.controller";
 
 @Controller("/items")
-export class ItemController {
+export class ItemController extends BaseController {
+    constructor() {
+        super("items");
+    }
+
     @Get("/", 0)
     getAllItems(_req?: Request) {
         const data = Item.getAll();

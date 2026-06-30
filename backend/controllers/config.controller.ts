@@ -2,13 +2,12 @@ import { Controller, Post } from "../decorator";
 import { log } from "../index";
 import { Get } from "../decorator";
 import { User } from "../model/users.model";
-import { Item } from "../model/items.model"
-
-import { producer } from "../events/kafka";
+import { Item } from "../model/items.model";
+import { BaseController } from "./primitives/base.controller"
 
 import { Category } from "../model/category.model";
 
-import type { IItem } from "../model/items.model"
+import type { IMenu } from "../model/menu.model"
 
 
 interface IConfig {
@@ -18,7 +17,11 @@ interface IConfig {
 }
 
 @Controller("/admin")
-export class AdminController {
+export class AdminController extends BaseController {
+
+    constructor() {
+        super("config");
+    }
 
     @Post("/items/add", 0)
     async addItems(req: Request): Promise<Response> {
@@ -27,8 +30,6 @@ export class AdminController {
         const categories = json.categories;
         const menu = json.menu;
         const sku = json.sku ?? "MISC-" + Math.floor(Math.random() * 1000)
-
-
 
         const auth = req.getHeader("Authorization");
         if (!auth) {
