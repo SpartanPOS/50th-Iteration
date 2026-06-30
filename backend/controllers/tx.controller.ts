@@ -13,7 +13,7 @@ import { BaseController } from "./primitives/base.controller";
 export class TXController extends BaseController {
 
     constructor() {
-        super("tx");
+        super({ topic: "tx" });
     }
 
     protected transactions = new Map<string, Producer>();

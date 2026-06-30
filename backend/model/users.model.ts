@@ -2,16 +2,44 @@ import { Repository, Schema } from 'redis-om'
 import redis from '../redis.ts'
 import { randomUUIDv7 } from 'bun';
 import { verifyJWT } from '../jwt.ts';
+import { log } from '../index.ts';
 
-interface permissions {
-    id: number;
-    name: string;
-}
+// Permission bit flags (4-byte hex: 32-bit integer)
+export const PermissionFlags = {
+    READ: 0x00000001,      // bit 0
+    WRITE: 0x00000002,     // bit 1
+    DELETE: 0x00000004,    // bit 2
+    ADMIN: 0x00000008,     // bit 3
+    MANAGE_USERS: 0x00000010,  // bit 4
+    MANAGE_ROLES: 0x00000020,  // bit 5
+    MANAGE_ITEMS: 0x00000040,  // bit 6
+    MANAGE_MENU: 0x00000080,   // bit 7
+    VIEW_REPORTS: 0x00000100,  // bit 8
+    EXPORT_DATA: 0x00000200,   // bit 9
+} as const;
+
+export const PermissionUtils = {
+    hasPermission: (permissions: number, flag: number): boolean => {
+        return (permissions & flag) === flag;
+    },
+    addPermission: (permissions: number, flag: number): number => {
+        return permissions | flag;
+    },
+    removePermission: (permissions: number, flag: number): number => {
+        return permissions & ~flag;
+    },
+    togglePermission: (permissions: number, flag: number): number => {
+        return permissions ^ flag;
+    },
+    getAllPermissions: (): number => {
+        return Object.values(PermissionFlags).reduce((acc, flag) => acc | flag, 0);
+    }
+};
 
 export interface IRole {
     id: string;
     name: string;
-    permissions: permissions[];
+    permissions: number;  // 32-bit hex: bit flags for permissions
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
@@ -23,7 +51,7 @@ export class DefaultRoles {
     static readonly admin: Role = {
         id: "019ece3c-368f-7000-ab47-19ef38690a74",
         name: "Admin",
-        permissions: [],
+        permissions: PermissionUtils.getAllPermissions(),  // All permissions
         createdAt: new Date(),
         updatedAt: new Date(),
         lastTouched: new Date(),
@@ -33,7 +61,7 @@ export class DefaultRoles {
     static readonly cashier: Role = {
         id: "019ece3c-7ea0-7000-984c-733e852a2a01",
         name: "Cashier",
-        permissions: [],
+        permissions: PermissionFlags.READ | PermissionFlags.WRITE,  // Read and Write only
         createdAt: new Date(),
         updatedAt: new Date(),
         lastTouched: new Date(),
@@ -49,7 +77,7 @@ export class DefaultRoles {
 export const roleSchema = new Schema('Role', {
     id: { type: 'string', indexed: true },
     name: { type: 'string' },
-    permissions: { type: 'string[]' },
+    permissions: { type: 'number' },  // 32-bit hex permission flags
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
@@ -65,7 +93,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
 class Role implements IRole {
     id!: string;
     name!: string;
-    permissions!: permissions[];
+    permissions!: number;  // 32-bit hex permission flags
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
@@ -104,6 +132,10 @@ export class Roles {
         return this._roles;
     }
 
+    static hasAuthLevel(authLevel: number): boolean {
+        return this._roles.some(role => role.authLevel === authLevel);
+    }
+
     static async loadRoles() {
         const dbRoles = (await roleRepository.search().returnAll()).map((e: any) => Role.fromEntity(e));
         dbRoles.sort((a, b) => (a.authLevel ?? 0) - (b.authLevel ?? 0));
@@ -118,7 +150,7 @@ export interface IUser {
     username: string;
     email: string;
     role: DefaultRoles;
-    extraPermissions: permissions[];
+    extraPermissions: number;  // 32-bit hex: bit flags for additional permissions
     passwordHash: string;
     createdAt: Date;
     updatedAt: Date;
@@ -132,12 +164,13 @@ export const userSchema = new Schema('User', {
     username: { type: 'string' },
     email: { type: 'string' },
     role: { type: 'string' },
-    extraPermissions: { type: 'string[]' },
+    extraPermissions: { type: 'number' },  // 32-bit hex permission flags
     passwordHash: { type: 'string' },
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
     lastTouchedBy: { type: 'number[]' },
+    entityId: { type: 'string' },
 });
 
 /* use the client to create a Repository just for Persons */
@@ -150,8 +183,8 @@ export class User implements IUser {
     id!: number;
     username!: string;
     email!: string;
-    role!: "admin" | "cashier";
-    extraPermissions!: permissions[];
+    role!: "Admin" | "Cashier";
+    extraPermissions!: number;  // 32-bit hex permission flags
     passwordHash!: string;
     createdAt!: Date;
     updatedAt!: Date;
@@ -167,7 +200,7 @@ export class User implements IUser {
 
     // Constructs a Class instance from a raw Redis OM Entity object
     static fromEntity(entity: any): User | null {
-        if (!entity || !entity.entityId) return null;
+        // if (!entity || !entity.entityId) return null;
 
         let parsedUser: User | null = null;
         if (entity.lastTouchedBy) {
@@ -217,10 +250,18 @@ export class User implements IUser {
     }
 
     static async byName(name: string): Promise<User[]> {
-        const entities = await userRepository.search().where('name').equals(name).returnAll();
+        const entities = await userRepository.search().where('username').equals(name).returnAll();
+        log.info(`Queried users by username "${name}": ${entities.length} found`);
+        if (!entities || entities.length === 0) log.warn(`No users found with username: ${name}`);
         return entities
-            .map(entity => User.fromEntity(entity))
-            .filter((user): user is User => user !== null);
+            .map(entity => {
+                log.trace(`Mapped entity to User: ${entity.entityId}`);
+                return User.fromEntity(entity);
+            })
+            .filter((user): user is User => { 
+                log.trace(`Filtering out null users from mapped entities`);
+                return user !== null
+        });
     }
 
     // Instance Persistence Methods
@@ -246,5 +287,15 @@ export class User implements IUser {
             await userRepository.remove(this.entityId);
             this.entityId = undefined;
         }
+    }
+
+    // Permission checking helper
+    hasPermission(flag: number): boolean {
+        // Get the user's role permissions
+        const rolePermissions = Roles.roles.find(r => r.name === this.role)?.permissions ?? 0;
+        // Combine role permissions with extra permissions
+        const combinedPermissions = rolePermissions | this.extraPermissions;
+        // Check if the flag is set
+        return PermissionUtils.hasPermission(combinedPermissions, flag);
     }
 }

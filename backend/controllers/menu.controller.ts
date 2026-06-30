@@ -1,11 +1,12 @@
 import { Controller, Get } from '../decorator';
 import { Menu } from '../model/menu.model';
 import { log } from '../index';
+import { BaseController } from './primitives/base.controller';
 
 @Controller("/menu")
 export class MenuController extends BaseController{
     constructor() {
-        super("menu");
+        super({ topic: "menu" });
     }
 
     @Get("/", 0)

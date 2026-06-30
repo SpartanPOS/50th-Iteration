@@ -6,7 +6,7 @@ import { BaseController } from "./primitives/base.controller";
 @Controller("/items")
 export class ItemController extends BaseController {
     constructor() {
-        super("items");
+        super({ topic: "items" });
     }
 
     @Get("/", 0)

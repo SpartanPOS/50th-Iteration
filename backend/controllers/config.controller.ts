@@ -1,9 +1,11 @@
 import { Controller, Post } from "../decorator";
+import { hash } from "crypto";
 import { log } from "../index";
 import { Get } from "../decorator";
-import { User } from "../model/users.model";
+import { UserController } from "./users.controller";
 import { Item } from "../model/items.model";
 import { BaseController } from "./primitives/base.controller"
+import { User } from "../model/users.model";
 
 import { Category } from "../model/category.model";
 
@@ -20,10 +22,10 @@ interface IConfig {
 export class AdminController extends BaseController {
 
     constructor() {
-        super("config");
+        super({ topic: "config" });
     }
 
-    @Post("/items/add", 0)
+    @Post("/items/add", 2)
     async addItems(req: Request): Promise<Response> {
         const json: { items?: unknown, categories?: unknown, menu?: unknown, sku: string } = await req.json();
         const items = json.items;
@@ -31,25 +33,29 @@ export class AdminController extends BaseController {
         const menu = json.menu;
         const sku = json.sku ?? "MISC-" + Math.floor(Math.random() * 1000)
 
-        const auth = req.getHeader("Authorization");
-        if (!auth) {
+        // const auth = req.headers.get("Authorization")?.replace("Bearer ", "");
+        // if (!auth) {
             
-            return Response.json({ success: false, message: "Unauthorized" }, { status: 401 });
-        }
-        const user = await (User as any).verify(auth);
-        if (!user) {
-            return Response.json({ success: false, message: "Unauthorized" }, { status: 401 });
-        }
+        //     return Response.json({ success: false, message: "Unauthorized No Token" }, { status: 401 });
+        // }
+        // const user = await (UserController as unknown as { verify?: (token: string) => Promise<unknown> }).verify?.(auth);
+        
+        // log.withContext({ user }).trace("User verified for adding items");
 
         try {
-            await producer.send({
-                topic: "config",
-                messages: [
-                    { key: "item.add", value: sku }
-                ]
-            })
-            const entities = new IItem();
-            
+            await this.kafka([{
+                key: "item.add",
+                value: sku
+            }])
+            const entities = new Item({
+                sku,
+                name: json.name,
+                description: json.description,
+                price: json.price
+
+            });
+        
+            entities.save()
             return Response.json({ success: true, data: entities }, { status: 200 });
         } catch (error) {
             log.error('Error fetching users: ' + error);
@@ -83,12 +89,21 @@ export class AdminController extends BaseController {
 
     @Post("/user/add", 0)
     async addUser(req: Request): Promise<Response> {
-        const { items, categories, menu, }: IConfig = await req.json();
+        const { username, password }= await req.json() as { username: string, password: string };
         try {
-            const entities = await User.getAll();
-            return Response.json({ success: true, data: entities }, { status: 200 });
-        } catch (error) {
-            log.error('Error fetching users: ' + error);
+            const newUser = new User({
+                username: username,
+                passwordHash: hash("sha256", password).toString(),
+                role: "admin",
+                extraPermissions: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
+            await newUser.save();
+            return Response.json({ success: true, data: newUser }, { status: 200 });
+        }
+        catch (error) {
+            log.error('Error creating user: ' + error);
             return new Response("Internal Server Error", { status: 500 });
         }
     }
