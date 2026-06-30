@@ -3,9 +3,16 @@ import { Controller, Get, Post } from "../decorator";
 import { signJWT, verifyJWT } from "../jwt";
 import { userRepository } from "../model/users.model";
 import { BaseController } from "./primitives/base.controller";
+import { User } from "../model/users.model";
+import { hash } from "crypto";
 
 @Controller("/users")
 export class UserController extends BaseController {
+
+    constructor() {
+        super({ topic: "users" });
+    }
+
     @Get("/", 0)
     getAllUsers(_req?: Request) {
         const users = userRepository.search().return.all();
@@ -14,6 +21,16 @@ export class UserController extends BaseController {
     }
 
     async __GetUserById(id: string) {
+        let entities = await userRepository.fetch(id);
+        if (!entities || entities.length === 0) {
+            log.warn(`No user found with ID: ${id}`);
+            return null;
+        }
+        entities = entities.map(entity => User.fromEntity(entity)).filter((user): user is User => user !== null);
+        if (entities.length === 0) {
+            log.warn(`No valid User instances found for ID: ${id}`);
+            return null;
+        }
         return await userRepository.fetch(id);
     }
 
@@ -26,11 +43,31 @@ export class UserController extends BaseController {
     @Post("/auth/token", 0)
     async generateToken(req: Request) {
         try {
-            const body = await req.json() as { auth_level: number };
+            const body = await req.json() as { auth_level: number, username: string, password: string };
             if (body.auth_level === undefined || typeof body.auth_level !== "number") {
                 return Response.json({ error: "Invalid auth_level. Must be a number." }, { status: 400 });
             }
-            const token = await signJWT({ auth_level: body.auth_level });
+            if (!body.username || !body.password) {
+                return Response.json({ error: "Username and password are required." }, { status: 400 });
+            }
+            let user: User | undefined = (await User.byName(body.username))[0];
+            if (user === undefined) {
+                log.warn(`User not found: ${body.username}`);
+                return Response.json({ error: "Invalid username or password." }, { status: 401 });
+            }
+            
+            const hashedPassword = hash("sha256", body.password).toString();
+            if (user.passwordHash !== hashedPassword) {
+                log.warn(`Invalid password for user: ${body.username}`);
+                return Response.json({ error: "Invalid username or password." }, { status: 401 });
+            }
+
+            if (!user.hasPermission(body.auth_level)) {
+                log.warn(`User ${body.username} does not have sufficient auth level. Required: ${body.auth_level}, User's: ${user.role.authLevel}`);
+                return Response.json({ error: "Insufficient authorization level." }, { status: 403 });
+            }
+
+            const token = await signJWT({ auth_level: body.auth_level, user: user.id });
             return Response.json({ token });
         } catch (error) {
             log.error("Error generating token: " + error);
@@ -38,12 +75,12 @@ export class UserController extends BaseController {
         }
     }
 
-    async verify(auth: string): Promise<boolean | null> {
+    async verify(auth: string): Promise<User | null> {
         const user = await verifyJWT(auth);
         if (!user || user.id === undefined || user.id === null) {
             return null;
         }
         const dbUser = await this.__GetUserById(String(user.id));
-        return dbUser && String(dbUser.id) === String(user.id) ? true : null;
+        return dbUser && String(dbUser.id) === String(user.id) ? dbUser : null;
     }
 }
