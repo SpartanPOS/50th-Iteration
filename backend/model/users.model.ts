@@ -90,7 +90,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await roleRepository.createIndex();
 }
 
-class Role implements IRole {
+class Role {
     id!: string;
     name!: string;
     permissions!: number;  // 32-bit hex permission flags

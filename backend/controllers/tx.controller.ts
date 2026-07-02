@@ -22,7 +22,7 @@ export class TXController extends BaseController {
         super({ topic: "tx" });
     }
 
-    protected transactions = new Map<string, Producer>();
+    protected transactions = new Map<string, any>();
 
     // async newTx(): Promise<string> {
     //     try {

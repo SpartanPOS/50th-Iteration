@@ -36,7 +36,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await itemRepository.createIndex();
 }
 
-export class Item implements IItem {
+export class Item  {
     id!: number;
     name!: string;
     category!: Category;
