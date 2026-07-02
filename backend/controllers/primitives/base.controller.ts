@@ -1,7 +1,6 @@
 import { getProducer } from '../../events/kafka.ts'
 import type { Message } from 'kafkajs'
 
-
 interface options {
     topic: string
 }
@@ -18,6 +17,4 @@ export class BaseController {
             })
         }
     }
-
-
 }

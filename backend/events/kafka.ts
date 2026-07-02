@@ -1,12 +1,12 @@
 import { Kafka, Partitioners, type Producer } from 'kafkajs';
 import { LogLayer } from 'loglayer';
-import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
+import { getSimplePrettyTerminal } from '@loglayer/transport-simple-pretty-terminal';
 
 export const log = new LogLayer({
-    prefix: "[ Kafka ]",
+    prefix: '[ Kafka ]',
     transport: getSimplePrettyTerminal({
-        runtime: "node",
-        viewMode: "inline"
+        runtime: 'node',
+        viewMode: 'inline'
     })
 });
 
@@ -34,7 +34,7 @@ async function createSharedProducer(): Promise<Producer> {
         });
 
         sharedProducerConnectPromise = sharedProducer.connect().then(async () => {
-            log.info("Connected to Kafka broker");
+            log.info('Connected to Kafka broker');
             return sharedProducer as Producer;
         }).catch((error) => {
             sharedProducer = null;
@@ -62,21 +62,21 @@ export async function closeKafka(): Promise<void> {
 
     try {
         await producer.disconnect();
-        log.info("Kafka producer disconnected");
+        log.info('Kafka producer disconnected');
     } catch (error) {
-        log.error("Error disconnecting Kafka producer: " + error);
+        log.error('Error disconnecting Kafka producer: ' + error);
     }
 }
 
-process.once("beforeExit", () => {
+process.once('beforeExit', () => {
     void closeKafka();
 });
 
-process.once("SIGINT", () => {
+process.once('SIGINT', () => {
     void closeKafka().finally(() => process.exit(0));
 });
 
-process.once("SIGTERM", () => {
+process.once('SIGTERM', () => {
     void closeKafka().finally(() => process.exit(0));
 });
 

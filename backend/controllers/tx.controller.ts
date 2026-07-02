@@ -1,52 +1,46 @@
-import { log } from "../index";
-import { Controller, Get, Post } from "../decorator";
-import type { ITX } from "../model/tx.model";
-import { kafka } from "../events/kafka";
-import { randomUUIDv7 } from "bun";
-import { BaseController } from "./primitives/base.controller";
+import { log } from '../index';
+import { Controller, Get, Post } from '../decorator';
+import type { ITX } from '../model/tx.model';
+import { kafka } from '../events/kafka';
+import { randomUUIDv7 } from 'bun';
+import { BaseController } from './primitives/base.controller';
 
-
-
-@Controller("/tx")
+@Controller('/tx')
 export class TXController extends BaseController {
 
     constructor() {
-        super({ topic: "tx" });
+        super({ topic: 'tx' });
     }
 
     protected transactions = new Map<string, any>();
 
     async newTx(): Promise<string> {
-
         const txId = randomUUIDv7()
-
         try {
             let producer: any = kafka.producer({
                 transactionalId: txId,
             });
             await producer.connect();
-
-
             this.transactions.set(txId, producer)
             return txId
         } catch (error) {
             log.error('Error creating new transaction: ' + error);
-            return "" + error
+            return '' + error
         }
     }
 
-    @Get("/new", 0)
+    @Get('/new', 0)
     async getNewTx(req: Request): Promise<Response> {
         try {
             const txId = await this.newTx();
             return Response.json({ success: true, data: txId }, { status: 200 });
         } catch (error) {
             log.error('Error creating transaction: ' + error);
-            return new Response("Internal Server Error", { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     }
 
-    @Post("/add/item", 0)
+    @Post('/add/item', 0)
     async addItem(req: Request): Promise<Response> {
         const json = (await req.json()) as { id: string; item: unknown };
         try {
@@ -54,17 +48,15 @@ export class TXController extends BaseController {
             const tx = this.transactions.get(txId);
             if (!tx) {
                 log.error('Transaction not found: ' + txId);
-                return Response.json({ success: false, message: "Transaction not found" }, { status: 404 });
+                return Response.json({ success: false, message: 'Transaction not found' }, { status: 404 });
             }
-
-
             tx.send({
-                topic: "tx",
+                topic: 'tx',
                 messages: [
                     {
                         key: txId,
                         value: JSON.stringify({
-                            action: "item.added",
+                            action: 'item.added',
                             value: json.item
                         })
                     }
@@ -73,11 +65,11 @@ export class TXController extends BaseController {
             return Response.json({ success: true, data: txId }, { status: 200 });
         } catch (error) {
             log.error('Error creating transaction: ' + error);
-            return new Response("Internal Server Error", { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     }
 
-    @Post("/remove/item")
+    @Post('/remove/item')
     async removeItem(req: Request): Promise<Response> {
         const json = (await req.json()) as { id: string; item: unknown };
         try {
@@ -85,17 +77,15 @@ export class TXController extends BaseController {
             const tx = this.transactions.get(txId);
             if (!tx) {
                 log.error('Transaction not found: ' + txId);
-                return Response.json({ success: false, message: "Transaction not found" }, { status: 404 });
+                return Response.json({ success: false, message: 'Transaction not found' }, { status: 404 });
             }
-
-
             tx.send({
-                topic: "tx",
+                topic: 'tx',
                 messages: [
                     {
                         key: txId,
                         value: JSON.stringify({
-                            action: "item.removed",
+                            action: 'item.removed',
                             value: json.item
                         })
                     }
@@ -104,11 +94,11 @@ export class TXController extends BaseController {
             return Response.json({ success: true, data: txId }, { status: 200 });
         } catch (error) {
             log.error('Error removing item: ' + error);
-            return new Response("Internal Server Error", { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     }
 
-    @Post("/clear")
+    @Post('/clear')
     async clear(req: Request): Promise<Response> {
         const json = (await req.json()) as { id: string };
         try {
@@ -116,17 +106,15 @@ export class TXController extends BaseController {
             const tx = this.transactions.get(txId);
             if (!tx) {
                 log.error('Transaction not found: ' + txId);
-                return Response.json({ success: false, message: "Transaction not found" }, { status: 404 });
+                return Response.json({ success: false, message: 'Transaction not found' }, { status: 404 });
             }
-
-
             tx.send({
-                topic: "tx",
+                topic: 'tx',
                 messages: [
                     {
                         key: txId,
                         value: JSON.stringify({
-                            action: "clear",
+                            action: 'clear',
                         })
                     }
                 ]
@@ -134,11 +122,11 @@ export class TXController extends BaseController {
             return Response.json({ success: true, data: txId }, { status: 200 });
         } catch (error) {
             log.error('Error clearing transaction: ' + error);
-            return new Response("Internal Server Error", { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     }
 
-    @Post("/commit")
+    @Post('/commit')
     async commit(req: Request): Promise<Response> {
         const json = (await req.json()) as { id: string };
         try {
@@ -146,17 +134,15 @@ export class TXController extends BaseController {
             const tx = this.transactions.get(txId);
             if (!tx) {
                 log.error('Transaction not found: ' + txId);
-                return Response.json({ success: false, message: "Transaction not found" }, { status: 404 });
+                return Response.json({ success: false, message: 'Transaction not found' }, { status: 404 });
             }
-
-
             tx.send({
-                topic: "tx",
+                topic: 'tx',
                 messages: [
                     {
                         key: txId,
                         value: JSON.stringify({
-                            action: "commit",
+                            action: 'commit',
                         })
                     }
                 ]
@@ -166,11 +152,11 @@ export class TXController extends BaseController {
             return Response.json({ success: true, data: txId }, { status: 200 });
         } catch (error) {
             log.error('Error committing transaction: ' + error);
-            return new Response("Internal Server Error", { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     }
 
-    @Post("/abort")
+    @Post('/abort')
     async abort(req: Request): Promise<Response> {
         const json = (await req.json()) as { id: string };
         try {
@@ -178,17 +164,15 @@ export class TXController extends BaseController {
             const tx = this.transactions.get(txId);
             if (!tx) {
                 log.error('Transaction not found: ' + txId);
-                return Response.json({ success: false, message: "Transaction not found" }, { status: 404 });
+                return Response.json({ success: false, message: 'Transaction not found' }, { status: 404 });
             }
-
-
             tx.send({
-                topic: "tx",
+                topic: 'tx',
                 messages: [
                     {
                         key: txId,
                         value: JSON.stringify({
-                            action: "abort",
+                            action: 'abort',
                         })
                     }
                 ]
@@ -198,8 +182,7 @@ export class TXController extends BaseController {
             return Response.json({ success: true, data: txId }, { status: 200 });
         } catch (error) {
             log.error('Error aborting transaction: ' + error);
-            return new Response("Internal Server Error", { status: 500 });
+            return new Response('Internal Server Error', { status: 500 });
         }
     }
-
 }
