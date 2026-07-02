@@ -7,16 +7,14 @@ import { Item } from "../model/items.model";
 import { BaseController } from "./primitives/base.controller"
 import { User } from "../model/users.model";
 
+import type { IItem } from "../model/items.model";
+import type { ICategory } from "../model/category.model";
+import type { IMenu } from "../model/menu.model";
+
 import { Category } from "../model/category.model";
 
 import type { IMenu } from "../model/menu.model"
 
-
-interface IConfig {
-    items?: IItem[];
-    categories?: Category[];
-    menu?: IMenu[];
-}
 
 @Controller("/admin")
 export class AdminController extends BaseController {
@@ -66,7 +64,7 @@ export class AdminController extends BaseController {
 
     @Post("/menu/add", 0)
     async addMenu(req: Request): Promise<Response> {
-        const { items, categories, menu, }: IConfig = await req.json();
+        const { items, categories } = await req.json() as IMenu[];
         try {
             const entities = await User.getAll();
             return Response.json({ success: true, data: entities }, { status: 200 });
@@ -78,10 +76,32 @@ export class AdminController extends BaseController {
 
     @Post("/category/add", 0)
     async addCategory(req: Request): Promise<Response> {
-        const { items, categories, menu, }: IConfig = await req.json();
+        let categories  = await req.json() as  ICategory[] ;
         try {
-            const entities = await User.getAll();
-            return Response.json({ success: true, data: entities }, { status: 200 });
+            if (!categories) return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
+            
+            if (!categories || categories.length === 0) {
+                return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
+            };
+
+
+            
+            categories.map(async (cat) => {
+                const newCategory = new Category({
+                    id: cat.id,
+                    name: cat.name,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    lastTouched: new Date(),
+                    lastTouchedBy: null as any,
+                });
+
+
+
+                await newCategory.save();
+            });
+
+            return Response.json({ success: true, data: categories }, { status: 200 });
         } catch (error) {
             log.error('Error fetching users: ' + error);
             return new Response("Internal Server Error", { status: 500 });

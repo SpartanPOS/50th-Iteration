@@ -1,13 +1,51 @@
-import { mock, test, expect, describe, beforeEach } from "bun:test";
+import { mock, test, expect, describe, beforeAll, beforeEach } from "bun:test";
 
 import { ItemController } from "../../items.controller";
 
-import { adminToken, cashierToken } from "./users.controller.test";
+import { getAuthTokens } from "./auth-fixture.test";
+
+import redis from "../../../redis.ts";
+import { Item } from "../../../model/items.model.ts";
+
+await redis.flushall();
+
+function seedItems() {
+    let item1 = new Item({
+        id: 1,
+        name: "Item 1",
+        price: 10.0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastTouched: new Date(),
+        lastTouchedBy: null as any,
+    });
+
+    let item2 = new Item({
+        id: 2,
+        name: "Item 2",
+        price: 20.0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastTouched: new Date(),
+        lastTouchedBy: null as any,
+    });
+
+    return Promise.all([item1.save(), item2.save()]);
+}
 
 describe("ItemController", () => {
     let controller: ItemController;
+    let adminToken = "";
+    let cashierToken = "";
 
-    beforeEach(() => {
+    beforeAll(async () => {
+        const tokens = await getAuthTokens();
+        adminToken = tokens.adminToken;
+        cashierToken = tokens.cashierToken;
+        await seedItems();
+    });
+
+    beforeEach(async () => {
         controller = new ItemController();
     });
 

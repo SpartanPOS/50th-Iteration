@@ -6,6 +6,19 @@ import { BaseController } from "./primitives/base.controller";
 import { User } from "../model/users.model";
 import { hash } from "crypto";
 
+interface IUser {
+    id: number;
+    username: string;
+    email: string;
+    role: string;
+    extraPermissions: number;
+    passwordHash: string;
+    createdAt: Date;
+    updatedAt: Date;
+    lastTouched: Date;
+    lastTouchedBy: number | null;
+}
+
 @Controller("/users")
 export class UserController extends BaseController {
 
@@ -26,8 +39,8 @@ export class UserController extends BaseController {
             log.warn(`No user found with ID: ${id}`);
             return null;
         }
-        entities = entities.map(entity => User.fromEntity(entity)).filter((user): user is User => user !== null);
-        if (entities.length === 0) {
+        const users: User[] = entities.map((entity: User) => User.fromEntity(entity)).filter((user): user is User => user !== null);
+        if (users.length === 0) {
             log.warn(`No valid User instances found for ID: ${id}`);
             return null;
         }

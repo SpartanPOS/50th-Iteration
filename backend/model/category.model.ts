@@ -2,6 +2,15 @@ import type { IUser } from './users.model';
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
 
+export interface ICategory {
+    id: number;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    lastTouched: Date;
+    lastTouchedBy: IUser;
+}
+
 const catSchema = new Schema('Category', {
     id: { type: 'number', indexed: true },
     name: { type: 'string' },
