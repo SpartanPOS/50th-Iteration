@@ -27,7 +27,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await storeRepository.createIndex();
 }
 
-export class Store implements IStore {
+export class Store {
     id!: number;
     name!: string;
     location!: string;

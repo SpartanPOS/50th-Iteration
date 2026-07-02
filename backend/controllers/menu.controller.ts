@@ -21,24 +21,23 @@ export interface IMenu {
     updatedAt: Date;
 }    
 
-
-@Controller("/menu")
+@Controller('/menu')
 export class MenuController extends BaseController{
     constructor() {
-        super({ topic: "menu" });
+        super({ topic: 'menu' });
     }
 
-    @Get("/", 0)
+    @Get('/', 0)
     async getAllItems(_req?: Request) {
         const data = await Menu.getAll();
-        log.withMetadata({ data }).trace("Get all items");
+        log.withMetadata({ data }).trace('Get all items');
         return Response.json(data);
     }
 
-    @Get("/:id", 0)
+    @Get('/:id', 0)
     async getItemById(req: Request) {
         const data = await req.json() as { id: string }
-        log.withMetadata({ data }).trace("Get item by ID");
+        log.withMetadata({ data }).trace('Get item by ID');
         const item = await Menu.byId(data.id)
         return Response.json(item)
     }
