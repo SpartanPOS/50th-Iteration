@@ -8,10 +8,24 @@ import { AdminController } from "./controllers/config.controller";
 import { ItemController } from "./controllers/items.controller";
 import { UserController } from "./controllers/users.controller";
 import { AdminController } from "./controllers/config.controller";
-import type { RouteDefinition, RouteHandler } from "./decorator";
-import { verifyJWT } from "./jwt";
 import { TXController } from "./controllers/tx.controller";
 import { MenuController } from "./controllers/menu.controller";
+
+import { extractPathParams } from "./decorator";
+import type { RouteDefinition, RouteHandler } from "./decorator";
+import { verifyJWT } from "./jwt";
+
+
+function pathPatternToRegExp(path: string): RegExp {
+    const pattern = path
+        .split("/")
+        .map(segment => {
+            if (segment.startsWith(":")) return "([^/]+)";
+            return segment.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&");
+        })
+        .join("/");
+    return new RegExp(`^${pattern}$`);
+}
 
 export const log = new LogLayer({
     prefix: "[Web Backend]",
@@ -32,6 +46,8 @@ async function main() {
     interface RouteConfig {
         handler: RouteHandler;
         authLevel: number;
+        pattern: RegExp;
+        routePath: string;
     }
 
     // Map to store runtime routes for fast lookup
@@ -50,6 +66,7 @@ async function main() {
             // Construct full path and normalize slashes
             const fullPath = `${basePath}${route.path}`.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
             const lookupKey = `${route.method}:${fullPath}`;
+            const pattern = pathPatternToRegExp(fullPath);
 
             // get the handler safely and validate
             const handler = (instance as Record<string, RouteHandler | undefined>)[route.methodName];
@@ -61,6 +78,8 @@ async function main() {
             routesMap.set(lookupKey, {
                 handler: handler.bind(instance),
                 authLevel: route.authLevel,
+                pattern,
+                routePath: fullPath,
             });
             log.info(`Registered route: ${lookupKey} with authLevel ${route.authLevel}`);
         });
@@ -74,7 +93,21 @@ async function main() {
             const url = new URL(req.url);
             const pathname = url.pathname === "/" ? "/" : url.pathname.replace(/\/$/, "");
             const lookupKey = `${req.method}:${pathname}`;
-            const routeConfig = routesMap.get(lookupKey);
+            let routeConfig = routesMap.get(lookupKey);
+            let routeParams: Record<string, string> | undefined;
+
+            if (!routeConfig) {
+                for (const [key, config] of routesMap.entries()) {
+                    if (!key.startsWith(`${req.method}:`)) continue;
+                    if (config.pattern.test(pathname)) {
+                        routeConfig = config;
+                        routeParams = extractPathParams(config.routePath, pathname) ?? undefined;
+                        break;
+                    }
+                }
+            } else {
+                routeParams = extractPathParams(routeConfig.routePath, pathname) ?? undefined;
+            }
             const requestMetadata = {
                 method: req.method,
                 path: url.pathname,
@@ -109,7 +142,7 @@ async function main() {
                         (req as any).user = decoded;
                     }
 
-                    return await routeConfig.handler(req);
+                    return await routeConfig.handler(req, routeParams);
                 } catch (err) {
                     log.error('Error handling request:' + err);
                     return new Response("Internal Server Error", { status: 500 });

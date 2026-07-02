@@ -28,7 +28,7 @@ mock.module("../../index", () => {
     };
 });
 
-import { TXController } from "../../controllers/tx.controller";
+import { TXController } from "../../tx.controller";
 
 describe("TXController", () => {
     let controller: TXController;

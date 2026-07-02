@@ -5,15 +5,50 @@ export interface RouteDefinition {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   methodName: string;
   authLevel: number;
+  params?: string[];  // e.g., ['id'] for path '/users/:id'
 }
 
-export type RouteHandler = (req: Request) => Response | Promise<Response>;
+export type RouteHandler = (req: Request, params?: Record<string, string>) => Response | Promise<Response>;
 
 export interface ControllerInstance {
   [methodName: string]: RouteHandler;
 }
 
 export type ControllerClass<TInstance extends ControllerInstance = ControllerInstance> = new () => TInstance;
+
+// Utility to extract path parameters
+export function extractPathParams(pattern: string, actualPath: string): Record<string, string> | null {
+  const patternRegex = pathToRegex(pattern);
+  const match = actualPath.match(patternRegex.regex);
+  if (!match) return null;
+  
+  const params: Record<string, string> = {};
+  patternRegex.params.forEach((param, index) => {
+    params[param] = match[index + 1];
+  });
+  return params;
+}
+
+// Convert path pattern like '/users/:id' to regex
+function pathToRegex(pattern: string): { regex: RegExp; params: string[] } {
+  const params: string[] = [];
+  const regexPattern = pattern
+    .replace(/\//g, '\\/')
+    .replace(/:(\w+)/g, (_, paramName) => {
+      params.push(paramName);
+      return '([^\\/]+)';
+    });
+  return {
+    regex: new RegExp(`^${regexPattern}$`),
+    params
+  };
+}
+
+// Extract parameter names from path like '/users/:id/posts/:postId' -> ['id', 'postId']
+function extractParamNames(path: string): string[] {
+  const matches = path.match(/:(\w+)/g);
+  return matches ? matches.map(m => m.slice(1)) : [];
+}
 
 // Controller Class Decorator
 export function Controller<Base extends ControllerInstance = ControllerInstance>(basePath: string) {
@@ -31,13 +66,14 @@ export function Controller<Base extends ControllerInstance = ControllerInstance>
         const descriptor = Object.getOwnPropertyDescriptor(proto, key);
         if (descriptor && typeof descriptor.value === 'function') {
           const methodFn = descriptor.value;
-          const routeMeta = Reflect.getMetadata("route", methodFn) as { path: string; method: RouteDefinition['method']; authLevel: number } | undefined;
+          const routeMeta = Reflect.getMetadata("route", methodFn) as { path: string; method: RouteDefinition['method']; authLevel: number; params?: string[] } | undefined;
           if (routeMeta) {
             routes.push({
               path: routeMeta.path,
               method: routeMeta.method,
               methodName: key,
               authLevel: routeMeta.authLevel,
+              params: routeMeta.params,
             });
           }
         }
@@ -65,7 +101,8 @@ function createRouteDecorator(method: RouteDefinition['method']) {
       }
 
       if (methodFn && typeof methodFn === 'function') {
-        Reflect.defineMetadata("route", { path, method, authLevel }, methodFn);
+        const params = extractParamNames(path);
+        Reflect.defineMetadata("route", { path, method, authLevel, params }, methodFn);
       }
     };
   };
