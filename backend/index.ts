@@ -29,9 +29,11 @@ function pathPatternToRegExp(path: string): RegExp {
 
 export const log = new LogLayer({
     prefix: "[Web Backend]",
+    
     transport: getSimplePrettyTerminal({
         runtime: "node",
-        viewMode: "inline"
+        viewMode: "inline",
+        level: "info"
     })
 });
 
@@ -58,7 +60,7 @@ async function main() {
         const instance = new ControllerClass();
         const basePath = Reflect.getMetadata("basePath", ControllerClass) as string | undefined;
         const routes = Reflect.getMetadata("routes", ControllerClass) as RouteDefinition[] | undefined;
-        log.info(`Checking controller: ${ControllerClass.name}, basePath: ${basePath}, routes count: ${routes?.length}`);
+        log.debug(`Checking controller: ${ControllerClass.name}, basePath: ${basePath}, routes count: ${routes?.length}`);
 
         if (!routes || !basePath) return;
 
@@ -81,7 +83,7 @@ async function main() {
                 pattern,
                 routePath: fullPath,
             });
-            log.info(`Registered route: ${lookupKey} with authLevel ${route.authLevel}`);
+            log.debug(`Registered route: ${lookupKey} with authLevel ${route.authLevel}`);
         });
     });
 
