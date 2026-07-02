@@ -3,6 +3,25 @@ import { Menu } from '../model/menu.model';
 import { log } from '../index';
 import { BaseController } from './primitives/base.controller';
 
+import type { IItem } from '../model/items.model';
+import type { ICategory } from '../model/category.model';
+
+export interface MenuActiveDate {
+    startDate: Date;
+    endDate: Date;
+}
+
+export interface IMenu {
+    id: number;
+    name: string;
+    items: IItem[];
+    categories: ICategory[];
+    datesActive: MenuActiveDate[];
+    createdAt: Date;
+    updatedAt: Date;
+}    
+
+
 @Controller("/menu")
 export class MenuController extends BaseController{
     constructor() {
