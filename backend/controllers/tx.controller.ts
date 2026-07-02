@@ -3,8 +3,6 @@ import { Controller, Get, Post } from "../decorator";
 import type { ITX } from "../model/tx.model";
 import { kafka } from "../events/kafka";
 import { randomUUIDv7 } from "bun";
-import type { Producer } from "kafkajs";
-import { Partitioners } from "kafkajs";
 import { BaseController } from "./primitives/base.controller";
 
 
@@ -16,16 +14,15 @@ export class TXController extends BaseController {
         super({ topic: "tx" });
     }
 
-    protected transactions = new Map<string, Producer>();
+    protected transactions = new Map<string, any>();
 
     async newTx(): Promise<string> {
 
         const txId = randomUUIDv7()
 
         try {
-            let producer = kafka.producer({
+            let producer: any = kafka.producer({
                 transactionalId: txId,
-                createPartitioner: Partitioners.LegacyPartitioner
             });
             await producer.connect();
 
@@ -51,7 +48,7 @@ export class TXController extends BaseController {
 
     @Post("/add/item", 0)
     async addItem(req: Request): Promise<Response> {
-        let json = await req.json();
+        const json = (await req.json()) as { id: string; item: unknown };
         try {
             const txId = json.id as string;
             const tx = this.transactions.get(txId);
@@ -82,7 +79,7 @@ export class TXController extends BaseController {
 
     @Post("/remove/item")
     async removeItem(req: Request): Promise<Response> {
-        let json = await req.json();
+        const json = (await req.json()) as { id: string; item: unknown };
         try {
             const txId = json.id as string;
             const tx = this.transactions.get(txId);
@@ -113,7 +110,7 @@ export class TXController extends BaseController {
 
     @Post("/clear")
     async clear(req: Request): Promise<Response> {
-        let json = await req.json();
+        const json = (await req.json()) as { id: string };
         try {
             const txId = json.id as string;
             const tx = this.transactions.get(txId);
@@ -143,7 +140,7 @@ export class TXController extends BaseController {
 
     @Post("/commit")
     async commit(req: Request): Promise<Response> {
-        let json = await req.json();
+        const json = (await req.json()) as { id: string };
         try {
             const txId = json.id as string;
             const tx = this.transactions.get(txId);
@@ -175,7 +172,7 @@ export class TXController extends BaseController {
 
     @Post("/abort")
     async abort(req: Request): Promise<Response> {
-        let json = await req.json();
+        const json = (await req.json()) as { id: string };
         try {
             const txId = json.id as string;
             const tx = this.transactions.get(txId);

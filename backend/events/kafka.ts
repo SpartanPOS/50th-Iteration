@@ -1,8 +1,6 @@
-import { Kafka, Partitioners } from 'kafkajs';
+import { Kafka, Partitioners, type Producer } from 'kafkajs';
 import { LogLayer } from 'loglayer';
 import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
-
-
 
 export const log = new LogLayer({
     prefix: "[ Kafka ]",
@@ -17,38 +15,74 @@ export const kafka = new Kafka({
     brokers: ['localhost:9092'],
 });
 
-kafka.admin().connect().then(() => {
-    log.info("Connected to Kafka broker");
-}).catch((error) => {
-    log.error("Error connecting to Kafka broker: " + error);
-    process.exit(1);
+let sharedProducer: Producer | null = null;
+let sharedProducerConnectPromise: Promise<Producer> | null = null;
+let sharedProducerClosed = false;
+
+async function createSharedProducer(): Promise<Producer> {
+    if (sharedProducerClosed) {
+        sharedProducerClosed = false;
+    }
+
+    if (sharedProducer) {
+        return sharedProducer;
+    }
+
+    if (!sharedProducerConnectPromise) {
+        sharedProducer = kafka.producer({
+            allowAutoTopicCreation: true,
+        });
+
+        sharedProducerConnectPromise = sharedProducer.connect().then(async () => {
+            log.info("Connected to Kafka broker");
+            return sharedProducer as Producer;
+        }).catch((error) => {
+            sharedProducer = null;
+            sharedProducerConnectPromise = null;
+            throw error;
+        });
+    }
+
+    return sharedProducerConnectPromise;
+}
+
+export async function getProducer(): Promise<Producer> {
+    return createSharedProducer();
+}
+
+export async function closeKafka(): Promise<void> {
+    if (sharedProducerClosed) return;
+    sharedProducerClosed = true;
+
+    const producer = sharedProducer;
+    sharedProducer = null;
+    sharedProducerConnectPromise = null;
+
+    if (!producer) return;
+
+    try {
+        await producer.disconnect();
+        log.info("Kafka producer disconnected");
+    } catch (error) {
+        log.error("Error disconnecting Kafka producer: " + error);
+    }
+}
+
+process.once("beforeExit", () => {
+    void closeKafka();
 });
 
-//log each producer disconnect with reason for disconnect
-kafka.producer().on('producer.disconnect', (event) => {
-    log.info("Producer disconnected: " + event);
-}); 
-
-export const producer = await kafka.producer({
-    allowAutoTopicCreation: true,
-    transactionTimeout: 30000
+process.once("SIGINT", () => {
+    void closeKafka().finally(() => process.exit(0));
 });
 
-if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
+process.once("SIGTERM", () => {
+    void closeKafka().finally(() => process.exit(0));
+});
 
-    log.info("Connecting to Kafka broker...");
-
-    await producer.connect();
-
-    await producer.send({
-        topic: 'status',
-        messages: [
-            {
-                key: 'client',
-                value: 'Connected 1'
-            }
-        ]
-    })
-
-    await producer.disconnect();
+export function createTransactionalProducer(transactionalId: string) {
+    return kafka.producer({
+        transactionalId,
+        createPartitioner: Partitioners.LegacyPartitioner,
+    });
 }

@@ -1,4 +1,4 @@
-import {producer} from '../../events/kafka.ts'
+import { getProducer } from '../../events/kafka.ts'
 import type { Message } from 'kafkajs'
 
 
@@ -7,12 +7,12 @@ interface options {
 }
 
 export class BaseController {
-    kafka: Function;
+    kafka: (msg: Message[]) => Promise<void>;
 
     constructor(options: options) {
-        producer.connect();
-        this.kafka = (msg: Message[]) => {
-            producer.send({
+        this.kafka = async (msg: Message[]) => {
+            const producer = await getProducer();
+            await producer.send({
                 topic: options.topic,
                 messages: msg
             })

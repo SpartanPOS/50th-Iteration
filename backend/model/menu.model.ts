@@ -1,5 +1,5 @@
-import type { IItem } from "./items.model";
-import type { IUser } from "./users.model";
+import type { Item } from "./items.model";
+import type { User } from "./users.model";
 import type { Category } from "./category.model";
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
@@ -12,7 +12,7 @@ interface MenuActiveDate {
 export interface IMenu {
     id: number;
     name: string;
-    items: IItem[];
+    items: Item[];
     categories: Category[];
     datesActive: MenuActiveDate[];
     createdAt: Date;
@@ -33,16 +33,17 @@ const menuSchema = new Schema('Menu', {
     lastTouchedBy: { type: 'string' },
 });
 
-export class Menu implements IMenu {
+
+export class Menu {
     id!: number;
     name!: string;
-    items!: IItem[];
+    items!: Item[];
     categories!: Category[];
     datesActive!: MenuActiveDate[];
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: IUser;
+    lastTouchedBy!: User;
     entityId?: string;
 
     constructor(data?: Partial<IMenu>) {

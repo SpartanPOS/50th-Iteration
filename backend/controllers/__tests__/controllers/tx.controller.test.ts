@@ -14,7 +14,7 @@ mock.module("../../events/kafka", () => {
                 commit: mockCommit,
                 abort: mockAbort
             })
-        }
+        })
     };
 });
 
