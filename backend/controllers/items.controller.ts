@@ -10,17 +10,24 @@ export class ItemController extends BaseController {
     }
 
     @Get("/", 0)
-    getAllItems(_req?: Request) {
-        const data = Item.getAll();
-        log.withMetadata({ data }).trace("Get all items");
+    async getAllItems(_req?: Request) {
+        const data = await Item.getAll();
+        log.trace(`Get all items: ${data}`);
         return Response.json(data);
     }
 
     @Get("/:id", 0)
-    async getItemById(req: Request) {
-        const data = await req.json() as { id: string }
-        log.withMetadata({ data }).trace("Get item by ID");
-        const item = await Item.byId(data.id)
+    async getItemById(_req: Request, params?: Record<string, string>) {
+        const itemId = params?.id;
+        log.withMetadata({ itemId }).trace("Get item by ID");
+        if (!itemId) {
+            return Response.json({ error: "Missing item id" }, { status: 400 });
+        }
+
+
+
+        const item = await Item.byId(itemId)
+        log.withMetadata({ itemId, item }).trace("Get item by ID result");
         return Response.json(item)
     }
 }

@@ -1,6 +1,9 @@
 import { mock, test, expect, describe, beforeEach } from "bun:test";
 import { hash } from "crypto";
 
+export let cashierToken: string | null = null;
+export let adminToken: string | null = null;
+
 // Mock database
 const mockDatabase = [
     { 
@@ -90,7 +93,7 @@ mock.module("../../model/users.model", () => {
     };
 });
 
-import { UserController } from "../../controllers/users.controller";
+import { UserController } from "../../users.controller";
 
 describe("UserController", () => {
     let controller: UserController;
@@ -102,19 +105,26 @@ describe("UserController", () => {
     test("login to admin", async () => {
         const req = new Request("http://localhost/users/auth/token", {
             method: "POST",
-            body: JSON.stringify({ username: "admin", password: "hashedpassword", auth_level: 1 })
+            body: JSON.stringify({ username: "admin", password: "hashedpassword", auth_level: 2 })
         });
         const res = await controller.generateToken?.(req) || new Response(JSON.stringify({ error: "Not implemented" }), { status: 404 });
+        adminToken = await res.json().then((data: any) => data.token);
         expect(res.status).toBe(200);
+        if (res.status === 200) {
+            adminToken = await res.json().then((data: any) => data.token);
+        }
     });
 
     test("login to cashier", async () => {
         const req = new Request("http://localhost/users/auth/token", {
             method: "POST",
-            body: JSON.stringify({ username: "cashier", password: "hashedpassword", auth_level: 2 })
+            body: JSON.stringify({ username: "cashier", password: "hashedpassword", auth_level: 1 })
         });
         const res = await controller.generateToken?.(req) || new Response(JSON.stringify({ error: "Not implemented" }), { status: 404 });
         expect(res.status).toBe(200);
+        if (res.status === 200) {
+            cashierToken = await res.json().then((data: any) => data.token);
+        }
     });
 
 

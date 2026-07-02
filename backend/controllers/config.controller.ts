@@ -1,6 +1,6 @@
 import { Controller, Post } from "../decorator";
 import { hash } from "crypto";
-import { log } from "../index";
+import { log, log } from "../index";
 import { Get } from "../decorator";
 import { UserController } from "./users.controller";
 import { Item } from "../model/items.model";
@@ -55,7 +55,8 @@ export class AdminController extends BaseController {
 
             });
         
-            entities.save()
+            await entities.save()
+            log.withMetadata({ entities }).trace("Added new item to repository");
             return Response.json({ success: true, data: entities }, { status: 200 });
         } catch (error) {
             log.error('Error fetching users: ' + error);
@@ -94,8 +95,8 @@ export class AdminController extends BaseController {
             const newUser = new User({
                 username: username,
                 passwordHash: hash("sha256", password).toString(),
-                role: "admin",
-                extraPermissions: [],
+                role: "Admin",
+                extraPermissions: 0,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });

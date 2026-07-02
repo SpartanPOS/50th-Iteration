@@ -2,6 +2,7 @@ import { type IUser } from "./users.model";
 import type { Category } from "./category.model";
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
+import { log } from '../index';
 
 export interface IItem {
     id: number;
@@ -14,6 +15,7 @@ export interface IItem {
     updatedAt: Date;
     lastTouched: Date;
     lastTouchedBy: IUser;
+    entityId: string;
 }
 
 const itemSchema = new Schema('Item', {
@@ -26,6 +28,7 @@ const itemSchema = new Schema('Item', {
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
     lastTouchedBy: { type: 'string' },
+    entityId: { type: 'string' }
 });
 
 export const itemRepository = new Repository(itemSchema, redis as any);
@@ -48,13 +51,14 @@ export class Item implements IItem {
 
     constructor(data?: Partial<IItem>) {
         if (data) {
+            this.id = data.id ?? Math.floor(Math.random() * 1000000); // Generate a random ID if not provided
             Object.assign(this, data);
         }
     }
 
     // Constructs a Class instance from a raw Redis OM Entity object
     static fromEntity(entity: any): Item | null {
-        if (!entity || !entity.entityId) return null;
+        // if (!entity || !entity.entityId) return null;
 
         let parsedUser: IUser | null = null;
         if (entity.lastTouchedBy) {
@@ -76,8 +80,8 @@ export class Item implements IItem {
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
             lastTouchedBy: parsedUser as any,
+            entityId: entity.entityId
         });
-        item.entityId = entity.entityId;
         return item;
     }
 
@@ -98,15 +102,16 @@ export class Item implements IItem {
     }
 
     static async getAll(): Promise<Array<Item | null>> {
-        const entities = await itemRepository.search().returnAll();
+        const entities = await itemRepository.search().return.all();
+        log.withMetadata({ ents: entities }).trace("Fetched all items from repository");
         return entities
-            .map(entity => Item.fromEntity(entity))
-            .filter((item): item is Item => item !== null);
+            .map(entity => Item.fromEntity(entity));
+            // .filter((item): item is Item => item !== null);
     }
 
     // Static Finder Methods
     static async byId(id: string): Promise<Item | null> {
-        const entity = await itemRepository.fetch(id);
+        const entity = await itemRepository.search().where('id').equals(id).return.first();
         return Item.fromEntity(entity);
     }
 
