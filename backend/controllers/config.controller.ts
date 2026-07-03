@@ -58,15 +58,15 @@ export class AdminController extends BaseController {
         try {
         for (const cItem of items) {
             const { name, description, price, category, sku } = cItem;
+            const newSku = sku ?? "MISC-" + Math.floor(Math.random() * 1000)
 
             const solvedItem = {
                 name: name,
                 description: description ?? '',
                 price: price ?? 0,
                 category: category,
-                sku: sku ?? "MISC-" + Math.floor(Math.random() * 1000)
+                sku: newSku
             }
-            const newSku = sku ?? "MISC-" + Math.floor(Math.random() * 1000)
 
             await this.kafka([{
                 key: "item.add",
