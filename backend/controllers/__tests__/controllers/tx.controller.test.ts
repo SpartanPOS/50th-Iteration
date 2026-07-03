@@ -14,7 +14,7 @@ mock.module("../../events/kafka", () => {
                 commit: mockCommit,
                 abort: mockAbort
             })
-        })
+        }
     };
 });
 
@@ -56,17 +56,23 @@ describe("TXController", () => {
         expect(typeof json.data).toBe("string");
     });
 
-    test("addItem should send item.added message", async () => {
+  test('addItem should send item.added message', async () => {
         const txId = await controller.newTx();
-        const req = new Request("http://localhost/tx/add/item", {
-            method: "POST",
-            body: JSON.stringify({ id: txId, item: { id: 1, name: "test item" } })
+        const req = new Request('http://localhost/tx/add/item', {
+            method: 'POST',
+            body: JSON.stringify({ id: txId, item: { id: 1, name: 'test item' } })
         });
+
         const res = await controller.addItem(req);
         expect(res.status).toBe(200);
         expect(mockSend).toHaveBeenCalled();
-        const callArgs = mockSend.mock.calls[0][0];
-        expect(callArgs.topic).toBe("tx");
+
+        const firstCall = mockSend.mock.calls[0];
+        expect(firstCall).toBeDefined();
+
+        const callArgs = firstCall?.[0] as { topic?: string } | undefined;
+        expect(callArgs).toBeDefined();
+        expect(callArgs?.topic).toBe('tx');
     });
 
     test("removeItem should send item.removed message", async () => {

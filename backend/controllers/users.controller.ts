@@ -39,7 +39,7 @@ export class UserController extends BaseController {
             log.warn(`No user found with ID: ${id}`);
             return null;
         }
-        const users: User[] = entities.map((entity: User) => User.fromEntity(entity)).filter((user): user is User => user !== null);
+        const users: User[] = entities.map((entity: User) => User.fromEntity(entity)).filter((user: User | null): user is User => !!user);
         if (users.length === 0) {
             log.warn(`No valid User instances found for ID: ${id}`);
             return null;
@@ -49,7 +49,7 @@ export class UserController extends BaseController {
 
     @Get("/:id", 0)
     async getUserById(req?: Request) {
-        const data = await req?.json().id;
+        const data = await req?.json() as { id: string };
         return Response.json("Get user by ID: " + data.id);
     }
 

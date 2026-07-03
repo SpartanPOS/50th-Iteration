@@ -149,7 +149,7 @@ export interface IUser {
     id: number;
     username: string;
     email: string;
-    role: DefaultRoles;
+    role: Role; // Role name
     extraPermissions: number;  // 32-bit hex: bit flags for additional permissions
     passwordHash: string;
     createdAt: Date;
@@ -183,7 +183,7 @@ export class User implements IUser {
     id!: number;
     username!: string;
     email!: string;
-    role!: "Admin" | "Cashier";
+    role!: Role;
     extraPermissions!: number;  // 32-bit hex permission flags
     passwordHash!: string;
     createdAt!: Date;

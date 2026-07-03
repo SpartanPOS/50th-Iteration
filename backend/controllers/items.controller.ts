@@ -13,6 +13,10 @@ export class ItemController extends BaseController {
     async getAllItems(_req?: Request) {
         const data = await Item.getAll();
         log.trace(`Get all items: ${data}`);
+        await this.kafka([{
+            key: "item.getAll",
+            value: Date().toString()
+        }]);
         return Response.json(data);
     }
 
@@ -25,6 +29,11 @@ export class ItemController extends BaseController {
         }
         const item = await Item.byId(itemId)
         log.withMetadata({ itemId, item }).trace('Get item by ID result');
+        await this.kafka([{
+            key: "item.getById",
+            value: itemId
+        }]);
+        
         return Response.json(item)
     }
 }

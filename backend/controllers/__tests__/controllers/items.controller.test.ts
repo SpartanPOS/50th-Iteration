@@ -66,7 +66,7 @@ describe("ItemController", () => {
             method: "GET",
             headers: { "Authorization": `Bearer ${cashierToken}` }
         });
-        const res = await controller.getItems(req);
+        const res = await controller.getAllItems(req);
         expect(res.status).toBe(200);
         const json = await res.json() as { success: boolean; data: any[] };
         expect(json.success).toBe(true);

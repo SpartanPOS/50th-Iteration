@@ -19,7 +19,7 @@ if (isTestEnv) {
     log.info('Skipping Redis connection in test environment...');
 } else {
     log.info('Initializing Redis client...');
-    redis.on('error', (err) => log.error('Redis Client Error', err));
+    redis.on('error', (err: Error) => log.error('Redis Client Error', err.message));
     await redis.connect();
 }
 

@@ -1,6 +1,6 @@
 import { Controller, Post } from "../decorator";
 import { hash } from "crypto";
-import { log, log } from "../index";
+import { log } from "../index";
 import { Get } from "../decorator";
 import { UserController } from "./users.controller";
 import { Item } from "../model/items.model";
@@ -9,7 +9,7 @@ import { User } from "../model/users.model";
 
 import type { IItem } from "../model/items.model";
 import type { ICategory } from "../model/category.model";
-import { Menu, type IMenu } from "../model/menu.model";
+import { Menu } from "../model/menu.model";
 
 import { Category } from "../model/category.model";
 
@@ -56,8 +56,8 @@ export class AdminController extends BaseController {
         // }
 
         try {
-        for (const item of items) {
-            const { name, description, price, category, sku } = item;
+        for (const cItem of items) {
+            const { name, description, price, category, sku } = cItem;
 
             const solvedItem = {
                 name: name,
@@ -68,26 +68,26 @@ export class AdminController extends BaseController {
             }
             const newSku = sku ?? "MISC-" + Math.floor(Math.random() * 1000)
 
-                await this.kafka([{
-                    key: "item.add",
-                    value: 
-                    solvedItem.sku +
-                    solvedItem.name + 
-                    solvedItem.description + 
-                    solvedItem.price + 
-                    solvedItem.category?.id
-                }])
+            await this.kafka([{
+                key: "item.add",
+                value: 
+                solvedItem.sku +
+                solvedItem.name + 
+                solvedItem.description + 
+                solvedItem.price + 
+                solvedItem.category?.id
+            }])
 
 
-                const item: Item  = new Item({
-                    sku: solvedItem.sku,
-                    name: solvedItem.name,
-                    description: solvedItem.description,
-                    price: solvedItem.price,
-                    category: solvedItem.category,
-                });
-                entities.push(item);
-                await item.save();
+            const item: Item  = new Item({
+                sku: solvedItem.sku,
+                name: solvedItem.name,
+                description: solvedItem.description,
+                price: solvedItem.price,
+                category: solvedItem.category,
+            });
+            entities.push(item);
+            await item.save();
             }
 
             log.withMetadata({ entities }).trace("Added new item to repository");
@@ -107,40 +107,53 @@ export class AdminController extends BaseController {
      */
     @Post("/menu/add", 0)
     async addMenu(req: Request): Promise<Response> {
-        const {name, items, categories, activeDates } = await req.json() as Menu[];
+        const menus = await req.json() as Menu[];
 
+        const newMenus: Menu[] = [];
         try {
-            let existingItems: Item[] = [];
-            for (const item of items) {
-                //check if item exists (if has id load id, or search by name)
-                let existingItem = (await Item.byId(item.id)) || (await Item.byName(item.name))[0];
-                if (existingItem) {
-                    existingItems.push(existingItem);
-                } else {
-                    throw new Error(`Item not found: ${item.name}`);
+            for (const menu of menus) {
+                let existingItems: Item[] = [];
+                for (const item of menu.items) {
+                    //check if item exists (if has id load id, or search by name)
+                    let existingItem = (await Item.byName(item.name))[0];
+                    if (existingItem) {
+                        existingItems.push(existingItem);
+                    } else {
+                        throw new Error(`Item not found: ${item.name}`);
+                    }
                 }
+
+                let existingCategories: Category[] = [];
+                for (const category of menu.categories) {
+                    let existingCategory = (await Category.byName(category.name))[0];
+                    if (existingCategory) {
+                        existingCategories.push(existingCategory);
+                    } else {
+                        throw new Error(`Category not found: ${category.name}`);
+                    }
+                }
+
+                let newMenu = new Menu({
+                    name: menu.name,
+                    items: existingItems,
+                    categories: existingCategories,
+                    //datesActive: menu.datesActive,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+
+                await this.kafka([{
+                    key: "menu.add",
+                    value: newMenu.name + 
+                    newMenu.items.map(i => i.id).join(",") + 
+                    newMenu.categories.map(c => c.id).join(",")
+                    // + newMenu.datesActive.map(d => d.startDate.toISOString() + "-" + d.endDate.toISOString()).join(",")
+                }])
+                await newMenu.save();
+                newMenus.push(newMenu);
             }
 
-            let existingCategories: Category[] = [];
-            for (const category of categories) {
-                let existingCategory = (await Category.byId(category.id)) || (await Category.byName(category.name))[0];
-                if (existingCategory) {
-                    existingCategories.push(existingCategory);
-                } else {
-                    throw new Error(`Category not found: ${category.name}`);
-                }
-            }
-
-            let newMenu = new Menu({
-                name: name,
-                items: existingItems,
-                categories: existingCategories,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            });
-
-            return Response.json({ success: true, data: newMenu }, { status: 200 });
-        
+            return Response.json({ success: true, data: newMenus }, { status: 200 });
         } catch (error) {
             log.error('Error fetching users: ' + error);
             return new Response("API Error:", { status: 402 });
@@ -175,7 +188,10 @@ export class AdminController extends BaseController {
                     lastTouchedBy: null as any,
                 });
 
-
+                await this.kafka([{
+                    key: "category.add",
+                    value: newCategory.id + newCategory.name
+                }])
 
                 await newCategory.save();
             });
@@ -206,7 +222,20 @@ export class AdminController extends BaseController {
                 updatedAt: new Date(),
             });
             await newUser.save();
-            return Response.json({ success: true, data: newUser }, { status: 200 });
+            
+            await this.kafka([{
+                key: "user.add",
+                value: newUser.username + 
+                newUser.role +
+                newUser.extraPermissions +
+                newUser.passwordHash +
+                newUser.createdAt.toISOString() +
+                newUser.updatedAt.toISOString() +
+                newUser.lastTouched.toISOString() +
+                (newUser.lastTouchedBy ? newUser.lastTouchedBy.id : "null")
+            }])
+
+            return Response.json({ success: true, data: newUser }, { status: 200 });        
         }
         catch (error) {
             log.error('Error creating user: ' + error);
