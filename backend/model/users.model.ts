@@ -293,8 +293,8 @@ export class User implements IUser {
     hasPermission(flag: number): boolean {
         // Get the user's role permissions
         log.trace(`Checking permission for user ${this.username}`);
-        log.trace(`User role: ${this.role}, extraPermissions: ${this.extraPermissions.toString(16)}, flag to check: ${flag.toString(16)}`);
-        const rolePermissions = Roles.roles.find(r => r.name === this.role)?.permissions ?? 0;
+        log.trace(`User role: ${this.role.name}, extraPermissions: ${this.extraPermissions.toString(16)}, flag to check: ${flag.toString(16)}`);
+        const rolePermissions = Roles.roles.find(r => r.name === this.role.name)?.permissions ?? 0;
         // Combine role permissions with extra permissions
         const combinedPermissions = rolePermissions | this.extraPermissions;
         // Check if the flag is set

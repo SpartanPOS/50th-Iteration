@@ -18,7 +18,7 @@ export interface IMenu {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    lastTouchedBy: User;
 }
 
 const menuSchema = new Schema('Menu', {
@@ -64,12 +64,10 @@ export class Menu {
         return Menu.fromEntity(entity);
     }
 
-
-
     static fromEntity(entity: any): Menu | null {
         if (!entity || !entity.entityId) return null;
 
-        let parsedUser: IUser | null = null;
+        let parsedUser: User | null = null;
         if (entity.lastTouchedBy) {
             try {
                 parsedUser = JSON.parse(entity.lastTouchedBy);

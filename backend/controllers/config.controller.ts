@@ -226,4 +226,21 @@ export class AdminController extends BaseController {
             return new Response("Internal Server Error", { status: 500 });
         }
     }
+
+    @Post("/device/add", 4)
+    async addDevice(req: Request): Promise<Response> {
+        const { deviceId, deviceName } = await req.json() as { deviceId: string, deviceName: string };
+        try {
+            //we'll need to create a repository for device public keys and some sort of immutable identifier that can be used to verify the device is valid. For now, we'll just log the device and return a success response.
+            log.info(`Adding device: ${deviceId} - ${deviceName}`);
+            await this.kafka([{
+                key: "device.add",
+                value: deviceId + deviceName
+            }])
+            return Response.json({ success: true, message: `Device ${deviceName} added successfully.` }, { status: 200 }); 
+        } catch (error) {
+            log.error('Error adding device: ' + error);
+            return new Response("Internal Server Error", { status: 500 });
+        }
+    }
 }
