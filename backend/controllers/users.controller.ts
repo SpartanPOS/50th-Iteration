@@ -53,32 +53,47 @@ export class UserController extends BaseController {
         return Response.json("Get user by ID: " + data.id);
     }
 
+    async __ValidateUserCredentials(username: string, password: string, auth_level: number): Promise<User | null> {
+        const users = await userRepository.search().where("username").equals(username).returnAll();
+        if (users.length === 0) log.warn(`No user found with username: ${username}`);
+        if (!users[0]) return null;
+        let user = users[0] ? User.fromEntity(users[0]) : undefined;
+        if (auth_level === undefined || typeof auth_level !== "number") {
+            return null;
+        }
+        if (!username || !password) {
+            return null;
+        }
+
+        user = (await User.byName(username))[0];
+        if (user === undefined) {
+            log.warn(`User not found: ${username}`);
+            return null;
+        }
+        
+        const hashedPassword = hash("sha256", password).toString();
+        if (user.passwordHash !== hashedPassword) {
+            log.warn(`Invalid password for user: ${username}`);
+            return null;
+        }
+
+        if (!user.hasPermission(auth_level)) {
+            log.warn(`User ${username} does not have sufficient auth level. Required: ${auth_level}, User's: ${user.role.authLevel}`);
+            return null;
+        }
+    }
     @Post("/auth/token", 0)
     async generateToken(req: Request) {
         try {
             const body = await req.json() as { auth_level: number, username: string, password: string };
-            if (body.auth_level === undefined || typeof body.auth_level !== "number") {
-                return Response.json({ error: "Invalid auth_level. Must be a number." }, { status: 400 });
-            }
-            if (!body.username || !body.password) {
-                return Response.json({ error: "Username and password are required." }, { status: 400 });
-            }
-            let user: User | undefined = (await User.byName(body.username))[0];
-            if (user === undefined) {
-                log.warn(`User not found: ${body.username}`);
-                return Response.json({ error: "Invalid username or password." }, { status: 401 });
-            }
-            
-            const hashedPassword = hash("sha256", body.password).toString();
-            if (user.passwordHash !== hashedPassword) {
-                log.warn(`Invalid password for user: ${body.username}`);
-                return Response.json({ error: "Invalid username or password." }, { status: 401 });
+            const user = await this.__ValidateUserCredentials(body.username, body.password, body.auth_level);
+            if (!user) {
+                log.warn(`Authentication failed for user: ${body.username}`);
+                this.kafka([{ key: "user_login", value: JSON.stringify({ username: body.username, authLevel: body.auth_level, success: false }) }]);
+                return Response.json({ error: "Invalid credentials or insufficient permissions" }, { status: 401 });
             }
 
-            if (!user.hasPermission(body.auth_level)) {
-                log.warn(`User ${body.username} does not have sufficient auth level. Required: ${body.auth_level}, User's: ${user.role.authLevel}`);
-                return Response.json({ error: "Insufficient authorization level." }, { status: 403 });
-            }
+            this.kafka([{ key: "user_login", value: JSON.stringify({ userId: user.id, authLevel: body.auth_level, success: true }) }]);
 
             const token = await signJWT({ auth_level: body.auth_level, user: user.id });
             return Response.json({ token });

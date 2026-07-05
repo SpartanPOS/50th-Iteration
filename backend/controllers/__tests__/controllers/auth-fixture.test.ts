@@ -1,6 +1,6 @@
 import { hash } from "crypto";
 import redis from "../../../redis.ts";
-import { User } from "../../../model/users.model.ts";
+import { DefaultRoles, User } from "../../../model/users.model.ts";
 import { UserController } from "../../users.controller.ts";
 
 let authTokensPromise: Promise<{ adminToken: string; cashierToken: string }> | null = null;
@@ -14,7 +14,7 @@ async function seedUsers(): Promise<void> {
         id: 1,
         username: "admin",
         email: "admin@example.com",
-        role: "admin",
+        role: DefaultRoles.admin,
         extraPermissions: 0,
         passwordHash,
         createdAt: new Date(),
@@ -27,7 +27,7 @@ async function seedUsers(): Promise<void> {
         id: 2,
         username: "cashier",
         email: "cashier@example.com",
-        role: "cashier",
+        role: DefaultRoles.cashier,
         extraPermissions: 0,
         passwordHash,
         createdAt: new Date(),
