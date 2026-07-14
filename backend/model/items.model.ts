@@ -3,6 +3,7 @@ import type { Category } from "./category.model";
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
 import { log } from '../index';
+import type { BaseModel } from "./primitives/base.model";
 
 export interface IItem {
     id: number;
@@ -36,7 +37,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await itemRepository.createIndex();
 }
 
-export class Item  {
+export class Item implements BaseModel {
     id!: number;
     name!: string;
     category!: Category;
@@ -110,12 +111,12 @@ export class Item  {
     }
 
     // Static Finder Methods
-    static async byId(id: string): Promise<Item | null> {
+    static async getByID(id: string): Promise<Item | null> {
         const entity = await itemRepository.search().where('id').equals(id).return.first();
         return Item.fromEntity(entity);
     }
 
-    static async byName(name: string): Promise<Item[]> {
+    static async getByName(name: string): Promise<Item[]> {
         const entities = await itemRepository.search().where('name').equals(name).returnAll();
         return entities
             .map(entity => Item.fromEntity(entity))
@@ -123,7 +124,7 @@ export class Item  {
     }
 
     // Instance Persistence Methods
-    async save(): Promise<Item> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 

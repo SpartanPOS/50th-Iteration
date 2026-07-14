@@ -3,6 +3,7 @@ import redis from '../redis.ts'
 import { randomUUIDv7 } from 'bun';
 import { verifyJWT } from '../jwt.ts';
 import { log } from '../index.ts';
+import type { BaseModel } from './primitives/base.model.ts';
 
 // Permission bit flags (4-byte hex: 32-bit integer)
 export const PermissionFlags = {
@@ -179,7 +180,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await userRepository.createIndex();
 }
 
-export class User implements IUser {
+export class User implements IUser, BaseModel {
     id!: number;
     username!: string;
     email!: string;
@@ -265,7 +266,7 @@ export class User implements IUser {
     }
 
     // Instance Persistence Methods
-    async save(): Promise<User> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 
