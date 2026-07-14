@@ -90,7 +90,23 @@ async function main() {
     // Start the Bun Server
     const server = serve({
         port: 3000,
-        async fetch(req) {
+
+        websocket: {
+            open(ws) {
+                log.info(`WebSocket connection opened: ${ws.sessionId}`);
+            },
+            message(ws, message) {
+                log.info(`WebSocket message received from ${ws.sessionId}: ${message}`);
+            }
+        },
+
+        async fetch(req, server) {
+
+            if (server.upgrade(req)) {
+                return;
+            }
+
+
             const startTime = performance.now();
             const url = new URL(req.url);
             const pathname = url.pathname === "/" ? "/" : url.pathname.replace(/\/$/, "");

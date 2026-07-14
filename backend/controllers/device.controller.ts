@@ -19,3 +19,4 @@ export class DeviceController extends BaseController {
         this.kafka([{ key: "device_registration", value: JSON.stringify({ deviceId: body.deviceId, publicKey: body.publicKey }) }]);
         return Response.json({ message: "Device registered successfully" }, { status: 200 });
     }
+}

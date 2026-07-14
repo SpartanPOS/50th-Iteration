@@ -1,6 +1,7 @@
 import type { IUser } from './users.model';
 import { Repository, Schema } from 'redis-om';
 import redis from '../redis';
+import type { BaseModel } from './primitives/base.model';
 
 export interface IStore {
     id: number;
@@ -27,7 +28,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await storeRepository.createIndex();
 }
 
-export class Store {
+export class Store implements IStore, BaseModel {
     id!: number;
     name!: string;
     location!: string;
@@ -96,7 +97,7 @@ export class Store {
     }
 
     // Instance Persistence Methods
-    async save(): Promise<Store> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 

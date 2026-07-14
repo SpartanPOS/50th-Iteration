@@ -1,4 +1,6 @@
 import { Schema, Repository } from "redis-om";
+import redis from "../redis";
+import type { BaseModel } from "./primitives/base.model";
 
 interface IDevice {
     id: string;
@@ -27,7 +29,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await deviceRepository.createIndex();
 }
 
-export class Device {
+export class Device implements IDevice, BaseModel {
     id!: string
     name!: string;
     publicKey!: string;

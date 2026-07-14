@@ -1,6 +1,7 @@
 import type { Item } from "./items.model";
 import type { User } from "./users.model";
 import type { Category } from "./category.model";
+import type { BaseModel } from "./primitives/base.model";
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
 
@@ -34,7 +35,7 @@ const menuSchema = new Schema('Menu', {
 });
 
 
-export class Menu {
+export class Menu implements IMenu, BaseModel {
     id!: number;
     name!: string;
     items!: Item[];
@@ -105,7 +106,7 @@ export class Menu {
         };
     }
 
-    async save(): Promise<Menu> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 

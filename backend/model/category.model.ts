@@ -1,4 +1,5 @@
 import type { IUser } from './users.model';
+import type { BaseModel } from './primitives/base.model';
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
 
@@ -25,7 +26,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await categoryRepository.createIndex();
 }
 
-export class Category {
+export class Category implements ICategory, BaseModel {
     id!: number;
     name!: string;
     createdAt!: Date;
@@ -93,7 +94,7 @@ export class Category {
     }
 
     // Instance Persistence Methods
-    async save(): Promise<Category> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 
