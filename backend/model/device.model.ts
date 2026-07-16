@@ -71,10 +71,10 @@ export class Device implements IDevice, BaseModel {
         };
     }
 
-    async save(): Promise<Device> {
+    async save(): Promise<this> {
         const entityData = await this.toEntityData();
         const entity = await deviceRepository.save(entityData);
-        return this.fromEntity(entity);
+        return this;
     }
 
     async getAll(): Promise<Device[]> {
@@ -87,16 +87,18 @@ export class Device implements IDevice, BaseModel {
         return devices;
     }
 
-    async byId(id: string): Promise<Device | null> {
+    async getByID(id: string): Promise<this | null> {
         const entity = await deviceRepository.fetch(id);
         if (!entity) return null;
         return this.fromEntity(entity);
     }
 
-    async byName(name: string): Promise<Device | null> {
+    async getByName(name: string): Promise<this | null> {
         const entities = await deviceRepository.search().where('name').equals(name).returnAll();
         if (entities.length === 0) return null;
         return this.fromEntity(entities[0]);
     }
+
+    
 
 }

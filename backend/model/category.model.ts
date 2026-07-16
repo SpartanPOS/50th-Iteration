@@ -66,6 +66,26 @@ export class Category implements ICategory, BaseModel {
         return category;
     }
 
+    getByID(id: string): Promise<this> {
+        return categoryRepository.fetch(id).then((entity) => {
+            if (!entity) {
+                throw new Error(`Category with ID ${id} not found`);
+            }
+            Object.assign(this, entity);
+            return this;
+        });
+    }
+
+    getByName(name: string): Promise<this | null> {
+        return categoryRepository.search().where('name').equals(name).return.first().then((entity) => {
+            if (!entity) {
+                throw new Error(`Category with name ${name} not found`);
+            }
+            Object.assign(this, entity);
+            return this;
+        });
+    }
+
     // Serializes the instance back into format suitable for Redis OM
     toEntityData(): Record<string, any> {
         return {
