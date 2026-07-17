@@ -174,8 +174,7 @@ export const userSchema = new Schema('User', {
     entityId: { type: 'string' },
 });
 
-/* use the client to create a Repository just for Persons */
-export const userRepository = new Repository(userSchema, redis as any);
+const userRepository = new Repository(userSchema, redis as any);
 if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await userRepository.createIndex();
 }
@@ -197,6 +196,7 @@ export class User implements IUser, BaseModel<User> {
         if (data) {
             Object.assign(this, data);
         }
+
     }
 
     getAll(): Promise<User[]> {
