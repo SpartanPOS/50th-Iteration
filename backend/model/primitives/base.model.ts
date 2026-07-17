@@ -1,6 +1,7 @@
-export interface BaseModel {
+export interface BaseModel<T = any> {
     toEntityData(): Record<string, any>;
-    save(): Promise<this>;
-    getByID(id: string): Promise<this | null>;
-    getByName(name: string): Promise<this | null>;
+    getAll(): Promise<T[]> | T[];
+    save(): Promise<T>;
+    getByID(id: string): Promise<T | null>;
+    getByName(name: string): Promise<T | null>;
 }
