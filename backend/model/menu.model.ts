@@ -4,6 +4,7 @@ import type { Category } from "./category.model";
 import type { BaseModel } from "./primitives/base.model";
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
+import * as z from "zod";
 
 interface MenuActiveDate {
     startDate: Date;
@@ -34,8 +35,25 @@ const menuSchema = new Schema('Menu', {
     lastTouchedBy: { type: 'string' },
 });
 
+const zMenuSchema = z.object({
+    id: z.number(),
+    name: z.string()
+    .min(1, { message: "Menu name cannot be empty" })
+    .max(20, { message: "Menu name cannot exceed 20 characters" }),
+    items: z.array(z.string()),
+    
+    categories: z.array(z.string()),
+    datesActive: z.array(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+    })),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    lastTouched: z.string(),
+    lastTouchedBy: z.string(),
+});
 
-export class Menu implements IMenu, BaseModel {
+export class Menu implements IMenu, BaseModel<Menu> {
     id!: number;
     name!: string;
     items!: Item[];
@@ -53,16 +71,26 @@ export class Menu implements IMenu, BaseModel {
         }
     }
 
-    static async getAll(): Promise<Menu[]> {
+    async getAll(): Promise<Menu[]> {
         const entities = await menuRepository.search().returnAll();
         return entities
             .map(entity => Menu.fromEntity(entity))
             .filter((menu): menu is Menu => menu !== null);
     }
 
-    static async byId(id: string): Promise<Menu | null> {
+    async getByID(id: string): Promise<Menu | null> {
         const entity = await menuRepository.fetch(id);
-        return Menu.fromEntity(entity);
+        if (!entity) return null;
+
+        return Menu.fromEntity(entity) || null;
+    }
+
+    async getByName(name: string): Promise<Menu> {
+        const entities = await menuRepository.search().where('name').equals(name).return.first();
+        if (!entities) {
+            throw new Error(`Menu with name ${name} not found`);
+        }
+        return Menu.fromEntity(entities) as Menu;
     }
 
     static fromEntity(entity: any): Menu | null {

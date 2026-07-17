@@ -1,6 +1,9 @@
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
 import type { BaseModel } from "./primitives/base.model";
+import type { IDeviceConfig } from "./primitives/deviceconfig.model";
+import { User } from "./users.model";
+import { Menu } from "./menu.model";
 
 interface IDevice {
     id: string;
@@ -45,7 +48,7 @@ export class Device implements IDevice, BaseModel {
         }
     }
 
-    async fromEntity(entity: any): Promise<Device> {
+    async fromEntity(entity: any): Promise<this> {
         const device = new Device();
         device.id = entity.id;
         device.name = entity.name;
@@ -55,7 +58,8 @@ export class Device implements IDevice, BaseModel {
         device.updatedAt = entity.updatedAt;
         device.lastTouched = entity.lastTouched;
         device.lastTouchedBy = entity.lastTouchedBy;
-        return device;
+        Object.assign(this, device);
+        return this;
     }
 
     async toEntityData(): Promise<Record<string, any>> {

@@ -180,7 +180,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await userRepository.createIndex();
 }
 
-export class User implements IUser, BaseModel {
+export class User implements IUser, BaseModel<User> {
     id!: number;
     username!: string;
     email!: string;
@@ -197,6 +197,24 @@ export class User implements IUser, BaseModel {
         if (data) {
             Object.assign(this, data);
         }
+    }
+
+    getAll(): Promise<User[]> {
+        return userRepository.search().returnAll()
+            .then(entities => entities
+                .map(entity => User.fromEntity(entity))
+                .filter((user): user is User => user !== null)
+            );
+    }  
+
+    getByID(id: string): Promise<User | null> {
+        return userRepository.fetch(id)
+            .then(entity => User.fromEntity(entity));
+    }
+
+    getByName(name: string): Promise<User | null> {
+        return userRepository.search().where('username').equals(name).return.first()
+            .then(entity => User.fromEntity(entity));
     }
 
     // Constructs a Class instance from a raw Redis OM Entity object
@@ -245,12 +263,12 @@ export class User implements IUser, BaseModel {
     }
 
     // Static Finder Methods
-    static async byId(id: string): Promise<User | null> {
+    static async getByID(id: string): Promise<User | null> {
         const entity = await userRepository.fetch(id);
         return User.fromEntity(entity);
     }
 
-    static async byName(name: string): Promise<User[]> {
+    static async getByName(name: string): Promise<User[]> {
         const entities = await userRepository.search().where('username').equals(name).returnAll();
         log.info(`Queried users by username "${name}": ${entities.length} found`);
         if (!entities || entities.length === 0) log.warn(`No users found with username: ${name}`);

@@ -76,12 +76,22 @@ export class tx implements ITX, BaseModel {
 
 
     constructor(
-        Partial: Partial<ITX> = {}
+        Partial: Partial<tx> = {}
     ) {
         Object.assign(this, Partial);
     }
 
-    getByID(id: string): Promise<this> {
+    getAll(): Promise<tx[]> {
+        return txRepository.search().returnAll().then((entities) => {
+            return entities.map((entity) => {
+                const txInstance = new tx();
+                Object.assign(txInstance, entity);
+                return txInstance;
+            });
+        });
+    }
+
+    getByID(id: string): Promise<tx> {
         return txRepository.fetch(id).then((entity) => {
             if (!entity) {
                 throw new Error(`Transaction with ID ${id} not found`);
@@ -92,7 +102,7 @@ export class tx implements ITX, BaseModel {
         });
     }
 
-    getByName(name: string): Promise<this> {
+    getByName(name: string): Promise<tx> {
         return txRepository.search().where('name').equals(name).return.first().then((entity) => {
             if (!entity) {
                 throw new Error(`Transaction with name ${name} not found`);

@@ -44,18 +44,32 @@ export class Store implements IStore, BaseModel {
         }
     }
 
+    getAll(): Promise<Store[]> {
+        return storeRepository.search().returnAll()
+            .then(entities => entities
+                .map(entity => Store.fromEntity(entity))
+                .filter((store): store is Store => store !== null)
+            );
+    }  
+
+    getByID(id: string): Promise<Store | null> {
+        return storeRepository.fetch(id)
+            .then(entity => Store.fromEntity(entity));
+    }
+
+    getByName(name: string): Promise<Store[]> {
+        return storeRepository.search().where('name').equals(name).returnAll() 
+            .then(entities => entities
+                .map(entity => Store.fromEntity(entity))
+                .filter((store): store is Store => store !== null)
+            );
+    }
+
     // Constructs a Class instance from a raw Redis OM Entity object
     static fromEntity(entity: any): Store | null {
         if (!entity || !entity.entityId) return null;
 
         let parsedUser: IUser | null = null;
-        if (entity.lastTouchedBy) {
-            try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
-            } catch {
-                // Fallback if it is not stringified JSON (e.g. raw ID or string)
-            }
-        }
 
         const store = new Store({
             id: entity.id,

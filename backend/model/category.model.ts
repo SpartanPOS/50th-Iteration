@@ -26,7 +26,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await categoryRepository.createIndex();
 }
 
-export class Category implements ICategory, BaseModel {
+export class Category implements ICategory, BaseModel<Category> {
     id!: number;
     name!: string;
     createdAt!: Date;
@@ -66,17 +66,16 @@ export class Category implements ICategory, BaseModel {
         return category;
     }
 
-    getByID(id: string): Promise<this> {
+    async getByID(id: string): Promise<Category | null> {
         return categoryRepository.fetch(id).then((entity) => {
             if (!entity) {
                 throw new Error(`Category with ID ${id} not found`);
             }
-            Object.assign(this, entity);
-            return this;
+            return Category.fromEntity(entity);
         });
     }
 
-    getByName(name: string): Promise<this | null> {
+    getByName(name: string): Promise<Category | null> {
         return categoryRepository.search().where('name').equals(name).return.first().then((entity) => {
             if (!entity) {
                 throw new Error(`Category with name ${name} not found`);
@@ -98,7 +97,17 @@ export class Category implements ICategory, BaseModel {
         };
     }
 
-
+    getAll(): Promise<this[]> {
+        return categoryRepository.search().returnAll().then((entities) => {
+            return entities.map((entity) => {
+                const category = Category.fromEntity(entity);
+                if (!category) {
+                    throw new Error(`Failed to parse category entity with ID ${entity.entityId}`);
+                }
+                return category as this;
+            });
+        });
+    }
 
     // Static Finder Methods
     static async byId(id: string): Promise<Category | null> {

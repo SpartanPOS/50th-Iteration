@@ -37,7 +37,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await itemRepository.createIndex();
 }
 
-export class Item implements BaseModel {
+export class Item implements BaseModel<Item> {
     id!: number;
     name!: string;
     category!: Category;
@@ -102,25 +102,25 @@ export class Item implements BaseModel {
         };
     }
 
-    static async getAll(): Promise<Array<Item | null>> {
+    async getAll(): Promise<Item[]> {
         const entities = await itemRepository.search().return.all();
         log.withMetadata({ ents: entities }).trace("Fetched all items from repository");
         return entities
-            .map(entity => Item.fromEntity(entity));
-            // .filter((item): item is Item => item !== null);
+            .map(entity => Item.fromEntity(entity))
+            .filter((item): item is Item => item !== null);
     }
 
     // Static Finder Methods
-    static async getByID(id: string): Promise<Item | null> {
+    async getByID(id: string): Promise<Item | null> {
         const entity = await itemRepository.search().where('id').equals(id).return.first();
-        return Item.fromEntity(entity);
+        return Item.fromEntity(entity) as Item | null;
     }
 
-    static async getByName(name: string): Promise<Item[]> {
-        const entities = await itemRepository.search().where('name').equals(name).returnAll();
-        return entities
-            .map(entity => Item.fromEntity(entity))
-            .filter((item): item is Item => item !== null);
+    async getByName(name: string): Promise<(Item | null)> {
+        const entity = await itemRepository.search().where('name').equals(name).return.first();
+        if (!entity) return null;
+        Object.assign(this, entity);
+        return this ? this : null;
     }
 
     // Instance Persistence Methods
