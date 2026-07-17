@@ -1,7 +1,7 @@
 import { log } from "../index";
 import { Controller, Get, Post } from "../decorator";
 import { signJWT, verifyJWT } from "../jwt";
-import { userRepository } from "../model/users.model";
+import { User } from "../model/users.model";
 import { BaseController } from "./primitives/base.controller";
 import { User } from "../model/users.model";
 import { hash } from "crypto";
@@ -28,7 +28,7 @@ export class UserController extends BaseController {
 
     @Get("/", 0)
     getAllUsers(_req?: Request) {
-        const users = userRepository.search().return.all();
+        const users = User.getAll();
         log.info("Queried users from database:" + users);
         return Response.json("Get all users");
     }

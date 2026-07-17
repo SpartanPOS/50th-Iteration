@@ -103,6 +103,18 @@ export class Device implements IDevice, BaseModel {
         return this.fromEntity(entities[0]);
     }
 
-    
+    async getDeviceConfig(identifier: string): Promise<IDeviceConfig | null> {
+        const entity = await deviceRepository.search().where('identifier').equals(identifier).return.first();
+        if (!entity) return null;
+        const device = await this.fromEntity(entity);
+        return {
+            users: User.getAll().then(users => users.map(user => ({ id: user.id, username: user.username, email: user.email }))),
+            menus: Menu.getAll().then(menus => menus.map(menu => ({ id: menu.id, name: menu.name }))),
+            categories: Category.getAll().then(categories => categories.map(category => ({ id: category.id, name: category.name }))),
+            items: Item.getAll().then(items => items.map(item => ({ id: item.id, name: item.name }))),
+            store: Store.getAll().then(stores => stores.map(store => ({ id: store.id, name: store.name }))),
+            deviceRole: device.identifier as any,
+        }
+    }
 
 }
