@@ -3,6 +3,8 @@ import { LogLayer } from "loglayer";
 import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
 // import * as kafka from "./events/kafka";
 
+import { onNewClient, onMessage } from "./controllers/ws.controller";
+
 import "reflect-metadata";
 import { AdminController } from "./controllers/config.controller";
 import { ItemController } from "./controllers/items.controller";
@@ -29,11 +31,11 @@ function pathPatternToRegExp(path: string): RegExp {
 
 export const log = new LogLayer({
     prefix: "[Web Backend]",
-    
+
     transport: getSimplePrettyTerminal({
         runtime: "node",
         viewMode: "inline",
-        level: "info"
+        level: "trace"
     })
 });
 
@@ -93,9 +95,12 @@ async function main() {
 
         websocket: {
             open(ws) {
+                onNewClient(ws);
                 log.info(`WebSocket connection opened: ${ws.sessionId}`);
+
             },
             message(ws, message) {
+                onMessage(message);
                 log.info(`WebSocket message received from ${ws.sessionId}: ${message}`);
             }
         },

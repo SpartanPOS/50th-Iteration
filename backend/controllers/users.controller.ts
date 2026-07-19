@@ -3,7 +3,6 @@ import { Controller, Get, Post } from "../decorator";
 import { signJWT, verifyJWT } from "../jwt";
 import { User } from "../model/users.model";
 import { BaseController } from "./primitives/base.controller";
-import { User } from "../model/users.model";
 import { hash } from "crypto";
 
 interface IUser {
@@ -27,24 +26,19 @@ export class UserController extends BaseController {
     }
 
     @Get("/", 0)
-    getAllUsers(_req?: Request) {
-        const users = User.getAll();
+    async getAllUsers(_req?: Request) {
+        const users = await User.getAll();
         log.info("Queried users from database:" + users);
         return Response.json("Get all users");
     }
 
     async __GetUserById(id: string) {
-        let entities = await userRepository.fetch(id);
-        if (!entities || entities.length === 0) {
+        let user = await User.getByID(id);
+        if (!user) {
             log.warn(`No user found with ID: ${id}`);
             return null;
         }
-        const users: User[] = entities.map((entity: User) => User.fromEntity(entity)).filter((user: User | null): user is User => !!user);
-        if (users.length === 0) {
-            log.warn(`No valid User instances found for ID: ${id}`);
-            return null;
-        }
-        return await userRepository.fetch(id);
+        return user;
     }
 
     @Get("/:id", 0)
@@ -54,10 +48,11 @@ export class UserController extends BaseController {
     }
 
     async __ValidateUserCredentials(username: string, password: string, auth_level: number): Promise<User | null> {
-        const users = await userRepository.search().where("username").equals(username).returnAll();
-        if (users.length === 0) log.warn(`No user found with username: ${username}`);
-        if (!users[0]) return null;
-        let user = users[0] ? User.fromEntity(users[0]) : undefined;
+        const user: User | null = await User.getByName(username);
+        if (!user) {
+            log.warn(`No user found with username: ${username}`);
+            return null;
+        }
         if (auth_level === undefined || typeof auth_level !== "number") {
             return null;
         }
@@ -65,14 +60,8 @@ export class UserController extends BaseController {
             return null;
         }
 
-        user = (await User.byName(username))[0];
-        if (user === undefined) {
-            log.warn(`User not found: ${username}`);
-            return null;
-        }
-        
-        const hashedPassword = hash("sha256", password).toString();
-        if (user.passwordHash !== hashedPassword) {
+        const reqPasswordHash = hash("sha256", password).toString();
+        if (user.passwordHash !== reqPasswordHash) {
             log.warn(`Invalid password for user: ${username}`);
             return null;
         }
@@ -81,6 +70,7 @@ export class UserController extends BaseController {
             log.warn(`User ${username} does not have sufficient auth level. Required: ${auth_level}, User's: ${user.role.authLevel}`);
             return null;
         }
+        return user;
     }
     @Post("/auth/token", 0)
     async generateToken(req: Request) {
