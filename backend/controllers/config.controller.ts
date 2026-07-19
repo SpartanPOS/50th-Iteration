@@ -5,7 +5,7 @@ import { Get } from "../decorator";
 import { UserController } from "./users.controller";
 import { Item } from "../model/items.model";
 import { BaseController } from "./primitives/base.controller"
-import { User } from "../model/users.model";
+import { DefaultRoles, User } from "../model/users.model";
 
 import type { IItem } from "../model/items.model";
 import type { ICategory } from "../model/category.model";
@@ -37,45 +37,42 @@ export class AdminController extends BaseController {
     **/
     @Post("/items/add", 2)
     async addItems(req: Request): Promise<Response> {
-        const items = await req.json() as { name: string, description?: string, price?: number, category: Category, sku?: string }[];
-        const entities: Item[] = [];
+        const item = await req.json() as { name: string, description?: string, price?: number, category: Category, sku?: string };
         try {
-        for (const cItem of items) {
-            const { name, description, price, category, sku } = cItem;
-            const newSku = sku ?? "MISC-" + Math.floor(Math.random() * 1000)
+                const { name, description, price, category, sku } = item;
+                const newSku = sku ?? "MISC-" + Math.floor(Math.random() * 1000)
 
-            const solvedItem = {
-                name: name,
-                description: description ?? '',
-                price: price ?? 0,
-                category: category,
-                sku: newSku
-            }
+                const solvedItem = {
+                    name: name,
+                    description: description ?? '',
+                    price: price ?? 0,
+                    category: category,
+                    sku: newSku
+                }
 
-            await this.kafka([{
-                key: "item.add",
-                value: 
-                solvedItem.sku +
-                solvedItem.name + 
-                solvedItem.description + 
-                solvedItem.price + 
-                solvedItem.category?.id
-            }])
+                await this.kafka([{
+                    key: "item.add",
+                    value:
+                     JSON.stringify({
+                        name: solvedItem.name,
+                        description: solvedItem.description,
+                        price: solvedItem.price,
+                        categoryId: solvedItem.category?.id,
+                        sku: solvedItem.sku
+                    })
+                    //
+                }])
 
-
-            const item: Item  = new Item({
-                sku: solvedItem.sku,
-                name: solvedItem.name,
-                description: solvedItem.description,
-                price: solvedItem.price,
-                category: solvedItem.category,
+            const newItem: Item = new Item({
+                    sku: solvedItem.sku,
+                    name: solvedItem.name,
+                    description: solvedItem.description,
+                    price: solvedItem.price,
+                    category: solvedItem.category,
             });
-            entities.push(item);
-            await item.save();
-            }
+            await newItem.save();
 
-            log.withMetadata({ entities }).trace("Added new item to repository");
-            return Response.json({ success: true, data: entities }, { status: 200 });
+            return Response.json({ success: true, data: newItem }, { status: 200 });
         } catch (error) {
             log.error('Error fetching users: ' + error);
             return new Response("Internal Server Error", { status: 500 });
@@ -128,9 +125,12 @@ export class AdminController extends BaseController {
 
                 await this.kafka([{
                     key: "menu.add",
-                    value: newMenu.name + 
-                    newMenu.items.map(i => i.id).join(",") + 
-                    newMenu.categories.map(c => c.id).join(",")
+                    value: 
+                        JSON.stringify({
+                            name: newMenu.name,
+                            items: newMenu.items.map(i => i.id),
+                            categories: newMenu.categories.map(c => c.id)
+                        })
                     // + newMenu.datesActive.map(d => d.startDate.toISOString() + "-" + d.endDate.toISOString()).join(",")
                 }])
                 await newMenu.save();
@@ -152,16 +152,16 @@ export class AdminController extends BaseController {
     **/
     @Post("/category/add", 0)
     async addCategory(req: Request): Promise<Response> {
-        let categories  = await req.json() as  ICategory[] ;
+        let categories = await req.json() as ICategory[];
         try {
             if (!categories) return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
-            
+
             if (!categories || categories.length === 0) {
                 return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
             };
 
 
-            
+
             categories.map(async (cat) => {
                 const newCategory = new Category({
                     id: cat.id,
@@ -174,7 +174,14 @@ export class AdminController extends BaseController {
 
                 await this.kafka([{
                     key: "category.add",
-                    value: newCategory.id + newCategory.name
+                    value: JSON.stringify({
+                        id: newCategory.id,
+                        name: newCategory.name,
+                        createdAt: newCategory.createdAt.toISOString(),
+                        updatedAt: newCategory.updatedAt.toISOString(),
+                        lastTouched: newCategory.lastTouched.toISOString(),
+                        lastTouchedBy: newCategory.lastTouchedBy ? newCategory.lastTouchedBy.id : "null"
+                    })
                 }])
 
                 await newCategory.save();
@@ -195,7 +202,7 @@ export class AdminController extends BaseController {
     **/
     @Post("/user/add", 0)
     async addUser(req: Request): Promise<Response> {
-        const { username, password }= await req.json() as { username: string, password: string };
+        const { username, password } = await req.json() as { username: string, password: string };
         try {
             const newUser = new User({
                 username: username,
@@ -204,23 +211,27 @@ export class AdminController extends BaseController {
                 extraPermissions: 0,
                 createdAt: new Date(),
                 updatedAt: new Date(),
+                lastTouched: new Date(),
+                lastTouchedBy: null as any,
             });
             await newUser.save();
-            
+
             await this.kafka([{
                 key: "user.add",
-                value: newUser.username + 
-                newUser.role +
-                newUser.extraPermissions +
-                newUser.passwordHash +
-                newUser.createdAt.toISOString() +
-                newUser.updatedAt.toISOString() +
-                newUser.lastTouched.toISOString() +
-                (newUser.lastTouchedBy ? newUser.lastTouchedBy.id : "null")
+                value: JSON.stringify({
+                    username: newUser.username,
+                    extraPermissions: newUser.extraPermissions,
+                    passwordHash: newUser.passwordHash,
+                    createdAt: newUser.createdAt.toISOString(),
+                    updatedAt: newUser.updatedAt.toISOString(),
+                    lastTouched: newUser.lastTouched.toISOString(),
+                    lastTouchedBy: newUser.lastTouchedBy ? newUser.lastTouchedBy.id : "null"
+                })
             }])
 
-            return Response.json({ success: true, data: newUser }, { status: 200 });        
+            return Response.json({ success: true, data: newUser }, { status: 200 });
         }
+
         catch (error) {
             log.error('Error creating user: ' + error);
             return new Response("Internal Server Error", { status: 500 });
@@ -237,7 +248,7 @@ export class AdminController extends BaseController {
                 key: "device.add",
                 value: deviceId + deviceName
             }])
-            return Response.json({ success: true, message: `Device ${deviceName} added successfully.` }, { status: 200 }); 
+            return Response.json({ success: true, message: `Device ${deviceName} added successfully.` }, { status: 200 });
         } catch (error) {
             log.error('Error adding device: ' + error);
             return new Response("Internal Server Error", { status: 500 });

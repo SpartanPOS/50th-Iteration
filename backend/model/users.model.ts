@@ -150,7 +150,7 @@ export interface IUser {
     id: number;
     username: string;
     email: string;
-    role: Role; // Role name
+    role: string; // Role name
     extraPermissions: number;  // 32-bit hex: bit flags for additional permissions
     passwordHash: string;
     createdAt: Date;
@@ -179,7 +179,7 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await userRepository.createIndex();
 }
 
-export class User implements IUser, BaseModel<User> {
+export class User implements BaseModel<User> {
     id!: number;
     username!: string;
     email!: string;
@@ -194,25 +194,31 @@ export class User implements IUser, BaseModel<User> {
 
     constructor(data?: Partial<IUser>) {
         if (data) {
-            Object.assign(this, data);
-        }
+            if (data.role === undefined) {
+                throw new Error("User role must be defined");
+            }
+            const normalizedRole: Role = typeof data.role === 'string'
+                ? (Roles.roles.find(r => r.name === data.role) ?? DefaultRoles.cashier)
+                : (data.role as Role);
 
+            Object.assign(this, data, { role: normalizedRole });
+        }
     }
 
-    getAll(): Promise<User[]> {
+    static getAll(): Promise<User[]> {
         return userRepository.search().returnAll()
             .then(entities => entities
                 .map(entity => User.fromEntity(entity))
                 .filter((user): user is User => user !== null)
             );
-    }  
+    }
 
     getByID(id: string): Promise<User | null> {
         return userRepository.fetch(id)
             .then(entity => User.fromEntity(entity));
     }
 
-    getByName(name: string): Promise<User | null> {
+    static getByName(name: string): Promise<User | null> {
         return userRepository.search().where('username').equals(name).return.first()
             .then(entity => User.fromEntity(entity));
     }
@@ -222,11 +228,13 @@ export class User implements IUser, BaseModel<User> {
         // if (!entity || !entity.entityId) return null;
 
         let parsedUser: User | null = null;
-        if (entity.lastTouchedBy) {
+
+        let parsedRole: any = null;
+        if (entity.role) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedRole = typeof entity.role === 'string' ? JSON.parse(entity.role) : entity.role;
             } catch {
-                // Fallback if it is not stringified JSON (e.g. raw ID or string)
+                parsedRole = entity.role;
             }
         }
 
@@ -234,7 +242,7 @@ export class User implements IUser, BaseModel<User> {
             id: entity.id,
             username: entity.username,
             email: entity.email,
-            role: entity.role,
+            role: parsedRole,
             extraPermissions: entity.extraPermissions,
             passwordHash: entity.passwordHash,
             createdAt: entity.createdAt,
@@ -252,7 +260,7 @@ export class User implements IUser, BaseModel<User> {
             id: this.id,
             username: this.username,
             email: this.email,
-            role: this.role,
+            role: this.role ? this.role.name : null,
             extraPermissions: this.extraPermissions,
             passwordHash: this.passwordHash,
             createdAt: this.createdAt,
@@ -262,31 +270,14 @@ export class User implements IUser, BaseModel<User> {
         };
     }
 
-    // Static Finder Methods
-    static async getByID(id: string): Promise<User | null> {
-        const entity = await userRepository.fetch(id);
-        return User.fromEntity(entity);
-    }
 
-    static async getByName(name: string): Promise<User[]> {
-        const entities = await userRepository.search().where('username').equals(name).returnAll();
-        log.info(`Queried users by username "${name}": ${entities.length} found`);
-        if (!entities || entities.length === 0) log.warn(`No users found with username: ${name}`);
-        return entities
-            .map(entity => {
-                log.trace(`Mapped entity to User: ${entity.entityId}`);
-                return User.fromEntity(entity);
-            })
-            .filter((user): user is User => { 
-                log.trace(`Filtering out null users from mapped entities`);
-                return user !== null
-        });
-    }
 
     // Instance Persistence Methods
     async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
+
+        log.debug("Saving user: " + JSON.stringify(data, null, 2));
 
         if (this.entityId) {
             // Update existing
@@ -312,6 +303,7 @@ export class User implements IUser, BaseModel<User> {
     hasPermission(flag: number): boolean {
         // Get the user's role permissions
         log.trace(`Checking permission for user ${this.username}`);
+        log.trace(`User role: ${this.role.name}, extraPermissions: ${this.extraPermissions.toString(16)}, flag to check: ${flag.toString(16)}`);
         log.trace(`User role: ${this.role.name}, extraPermissions: ${this.extraPermissions.toString(16)}, flag to check: ${flag.toString(16)}`);
         const rolePermissions = Roles.roles.find(r => r.name === this.role.name)?.permissions ?? 0;
         // Combine role permissions with extra permissions
