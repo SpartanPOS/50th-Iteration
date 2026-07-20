@@ -1,21 +1,19 @@
 import { Controller, Post } from "../decorator";
 import { hash } from "crypto";
 import { log } from "../index";
-import { Get } from "../decorator";
-import { UserController } from "./users.controller";
-import { Item } from "../model/items.model";
+
 import { BaseController } from "./primitives/base.controller"
 import { DefaultRoles, User } from "../model/users.model";
 
-import { randomUUID } from "crypto";
-
 import type { IItem } from "../model/items.model";
 import type { ICategory } from "../model/category.model";
-import { Menu } from "../model/menu.model";
-
-import { Category } from "../model/category.model";
-
 import type { IMenu } from "../model/menu.model"
+
+import { Menu } from "../model/menu.model";
+import { Category } from "../model/category.model";
+import { Item } from "../model/items.model";
+
+import { randomUUID } from "crypto";
 
 /**
  * AdminController is responsible for handling administrative actions such as adding items, categories, menus, and users. It extends the BaseController and uses Kafka for event-driven communication.
