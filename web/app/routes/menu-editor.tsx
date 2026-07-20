@@ -7,22 +7,27 @@ import ClickableList from "~/components/base/clickable-list";
 export default function MenuEditor() {
 
     interface ItemForm {
+        id?: string;
         name: string;
         price: number;
     }
 
     const [editingField, setEditingField] = react.useState<ItemForm | null>(null);
+    const [menuItems, setMenuItems] = react.useState<{ id: string, name: string, price: number }[]>([]);
 
-    function getMenuItems() {
-        return [
-            { id: 1, name: 'Burger', price: 5.99 },
-            { id: 2, name: 'Fries', price: 2.99 },
-            { id: 3, name: 'Soda', price: 1.99 },
-        ];
+    async function getMenuItems(): Promise<{ id: string, name: string, price: number }[]> {
+        let data = await fetch("http://localhost:3000/items")
+            .then(res => res.json())
+            .then((data: { id: string, name: string, price: number }[]) => {
+                return data.map(item => { return { id: item.id, name: item.name, price: item.price } });
+            });
+
+        setEditingField(menuItems.length > 0 ? { name: menuItems[0].name, price: menuItems[0].price } : null);
+        return data;
     }
 
-    function modifyMenuItem(itemId: number) {
-        const item = getMenuItems().find(item => item.id === itemId);
+    async function modifyMenuItem(itemId: string) {
+        const item = await getMenuItems().then(data => data.find(item => item.id === itemId));
         if (item) {
             setEditingField({ name: item.name, price: item.price } as ItemForm);
         } else {
@@ -32,7 +37,6 @@ export default function MenuEditor() {
     }
 
     function MenuList() {
-        const menuItems = getMenuItems();
         return (
             <ClickableList interact={index => modifyMenuItem(menuItems[index].id)}>
                 {menuItems.map(item => (
@@ -43,6 +47,23 @@ export default function MenuEditor() {
                 ))}
             </ClickableList>
         );
+    }
+
+    react.useEffect(() => {
+        void getMenuItems().then(setMenuItems);
+    }, []);
+
+    function submitChanges() {
+        if (editingField) {
+            fetch(`http://localhost:3000/items/${editingField.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+                body: JSON.stringify(editingField),
+            });
+        }
     }
 
     function ActionButtons() {
@@ -69,7 +90,7 @@ export default function MenuEditor() {
                         <label className="block mb-1">Price</label>
                         <input type="number" step="0.01" className="w-full p-2 border rounded" value={editingField?.price || ''} onChange={(e) => setEditingField({ ...editingField, price: parseFloat(e.target.value) || 0 } as ItemForm)} />
                     </div>
-                    <Button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">Save Changes</Button>
+                    <Button type="submit" onSubmit={submitChanges} className="bg-green-500 text-white px-4 py-2 rounded">Save Changes</Button>
                 </form>
             </div>
         );

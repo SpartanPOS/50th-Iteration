@@ -12,7 +12,7 @@ function Store() {
 	const [sampleItems, setSampleItems] = useState<Item[]>([]);
 
 	useEffect(() => {
-		fetch('http://localhost:8000/item')
+		fetch('http://localhost:3000/items')
 			.then(response => response.json())
 			.then(items => setSampleItems(items as Item[]));
 	}, []);
