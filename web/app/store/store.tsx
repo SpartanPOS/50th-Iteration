@@ -5,6 +5,7 @@ import SideActions from '../components/side-actions';
 import SideCart from '../components/side-cart';
 import styles from './styling/store.module.css';
 import { Grid } from '~/components/grid';
+import LockScreen from './lock';
 
 function Store() {
 	const [CartItems, setCartItems] = useState<Item[]>([]);
@@ -51,6 +52,7 @@ function Store() {
 
 	return (
 		<div id='top-container' className={styles.topMargin}>
+			<LockScreen />
 			<Grid >
 				<SideCart items={CartItems} updateQuantity={updateQuantity} removeItem={removeItem} />
 				<SideActions />
