@@ -102,7 +102,7 @@ export class Item implements BaseModel<Item> {
         };
     }
 
-    async getAll(): Promise<Item[]> {
+    static async getAll(): Promise<Item[]> {
         const entities = await itemRepository.search().return.all();
         log.withMetadata({ ents: entities }).trace("Fetched all items from repository");
         return entities

@@ -1,6 +1,7 @@
 import { kafka } from "../events/kafka";
+import type { ServerWebSocket } from "bun";
 
-let clients: WebSocket[] = [];
+let clients: ServerWebSocket[] = [];
 
 let consumer = await kafka.consumer({
     groupId: "ws-clients",
@@ -30,7 +31,7 @@ consumer.run({
     },
 })
 
-export async function onNewClient(client: WebSocket) {
+export async function onNewClient(client: ServerWebSocket) {
     clients.push(client);
     return true;
 }
