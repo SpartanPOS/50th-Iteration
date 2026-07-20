@@ -4,6 +4,7 @@ import { MenuController } from "./menu.controller";
 import { TXController } from "./tx.controller";
 import { UserController } from "./users.controller";
 import { DeviceController } from "./device.controller";
+import { CategoryController } from "./category.controler";
 
 export default [
     AdminController,
@@ -11,5 +12,6 @@ export default [
     MenuController,
     TXController,
     UserController,
-    DeviceController
+    DeviceController,
+    CategoryController
 ];

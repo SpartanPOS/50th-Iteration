@@ -1,10 +1,12 @@
 import type { IUser } from './users.model';
-import type { BaseModel } from './primitives/base.model';
+import { BaseModel } from './primitives/base.model';
 import { Schema, Repository } from 'redis-om';
+import { randomUUID } from 'crypto';
+import { log } from '../index';
 import redis from '../redis';
 
 export interface ICategory {
-    id: number;
+    id: string;
     name: string;
     createdAt: Date;
     updatedAt: Date;
@@ -13,7 +15,7 @@ export interface ICategory {
 }
 
 const catSchema = new Schema('Category', {
-    id: { type: 'number', indexed: true },
+    id: { type: 'string', indexed: true },
     name: { type: 'string' },
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
@@ -26,24 +28,54 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await categoryRepository.createIndex();
 }
 
-export class Category implements ICategory, BaseModel<Category> {
-    id!: number;
+export class Category extends BaseModel<Category> {
     name!: string;
-    createdAt!: Date;
-    updatedAt!: Date;
     lastTouched!: Date;
     lastTouchedBy!: IUser;
-    entityId?: string;
+    private static readonly crud = new Category();
 
     constructor(data?: Partial<Category>) {
+        super(data, categoryRepository);
         if (data) {
+            this.id = data.id ?? randomUUID();
             Object.assign(this, data);
         }
     }
 
+    static getAll(): Promise<Category[]> {
+        log.trace("Fetching all categories from repository");
+        let categories = Category.crud.getAll();
+        
+        return categories;
+    }
+
+    static getById(id: string): Promise<Category | null> {
+        return Category.crud.getById(id);
+    }
+
+    static getByID(id: string): Promise<Category | null> {
+        return Category.getById(id);
+    }
+
+    static getByName(name: string): Promise<Category | null> {
+        return Category.crud.getByName(name);
+    }
+
+    // Serializes the instance back into format suitable for Redis OM
+    toEntityData(): Record<string, any> {
+        return {
+            id: this.id,
+            name: this.name,
+            createdAt: this.createdAt,
+            updatedAt: this.updatedAt,
+            lastTouched: this.lastTouched,
+            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
+        };
+    }
+
     // Constructs a Class instance from a raw Redis OM Entity object
-    static fromEntity(entity: any): Category | null {
-        if (!entity || !entity.entityId) return null;
+    fromEntity(entity: any): Category | null {
+        if (!entity) return null;
 
         let parsedUser: IUser | null = null;
         if (entity.lastTouchedBy) {
@@ -66,61 +98,6 @@ export class Category implements ICategory, BaseModel<Category> {
         return category;
     }
 
-    async getByID(id: string): Promise<Category | null> {
-        return categoryRepository.fetch(id).then((entity) => {
-            if (!entity) {
-                throw new Error(`Category with ID ${id} not found`);
-            }
-            return Category.fromEntity(entity);
-        });
-    }
-
-    getByName(name: string): Promise<Category | null> {
-        return categoryRepository.search().where('name').equals(name).return.first().then((entity) => {
-            if (!entity) {
-                throw new Error(`Category with name ${name} not found`);
-            }
-            Object.assign(this, entity);
-            return this;
-        });
-    }
-
-    // Serializes the instance back into format suitable for Redis OM
-    toEntityData(): Record<string, any> {
-        return {
-            id: this.id,
-            name: this.name,
-            createdAt: this.createdAt,
-            updatedAt: this.updatedAt,
-            lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
-        };
-    }
-
-    getAll(): Promise<this[]> {
-        return categoryRepository.search().returnAll().then((entities) => {
-            return entities.map((entity) => {
-                const category = Category.fromEntity(entity);
-                if (!category) {
-                    throw new Error(`Failed to parse category entity with ID ${entity.entityId}`);
-                }
-                return category as this;
-            });
-        });
-    }
-
-    // Static Finder Methods
-    static async byId(id: string): Promise<Category | null> {
-        const entity = await categoryRepository.fetch(id);
-        return Category.fromEntity(entity);
-    }
-
-    static async byName(name: string): Promise<Category[]> {
-        const entities = await categoryRepository.search().where('name').equals(name).returnAll();
-        return entities
-            .map(entity => Category.fromEntity(entity))
-            .filter((cat): cat is Category => cat !== null);
-    }
 
     // Instance Persistence Methods
     async save(): Promise<this> {
@@ -146,3 +123,4 @@ export class Category implements ICategory, BaseModel<Category> {
         }
     }
 }
+
