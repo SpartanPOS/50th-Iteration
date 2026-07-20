@@ -6,12 +6,7 @@ import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-termi
 import { onNewClient, onMessage } from "./controllers/ws.controller";
 
 import "reflect-metadata";
-import { AdminController } from "./controllers/config.controller";
-import { ItemController } from "./controllers/items.controller";
-import { UserController } from "./controllers/users.controller";
-import { AdminController } from "./controllers/config.controller";
-import { TXController } from "./controllers/tx.controller";
-import { MenuController } from "./controllers/menu.controller";
+import resourceHandler from "./controllers/index";
 
 import { extractPathParams } from "./decorator";
 import type { RouteDefinition, RouteHandler } from "./decorator";
@@ -45,7 +40,7 @@ log.info('Starting the server...');
 
 async function main() {
     // allow any controller constructor (avoid forcing an index-signature on instances)
-    const controllers: Array<new (...args: any[]) => unknown> = [AdminController, ItemController, UserController, TXController, MenuController];
+    const controllers: Array<new (...args: any[]) => unknown> = resourceHandler;
 
     interface RouteConfig {
         handler: RouteHandler;
@@ -96,12 +91,12 @@ async function main() {
         websocket: {
             open(ws) {
                 onNewClient(ws);
-                log.info(`WebSocket connection opened: ${ws.sessionId}`);
+                log.info(`WebSocket connection opened: ${ws.remoteAddress}`);
 
             },
             message(ws, message) {
                 onMessage(message);
-                log.info(`WebSocket message received from ${ws.sessionId}: ${message}`);
+                log.info(`WebSocket message received from ${ws.remoteAddress}: ${message}`);
             }
         },
 
@@ -110,7 +105,6 @@ async function main() {
             if (server.upgrade(req)) {
                 return;
             }
-
 
             const startTime = performance.now();
             const url = new URL(req.url);
