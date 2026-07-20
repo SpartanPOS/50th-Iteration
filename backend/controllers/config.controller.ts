@@ -7,6 +7,8 @@ import { Item } from "../model/items.model";
 import { BaseController } from "./primitives/base.controller"
 import { DefaultRoles, User } from "../model/users.model";
 
+import { randomUUID } from "crypto";
+
 import type { IItem } from "../model/items.model";
 import type { ICategory } from "../model/category.model";
 import { Menu } from "../model/menu.model";
@@ -169,40 +171,39 @@ export class AdminController extends BaseController {
     **/
     @Post("/category/add", 0)
     async addCategory(req: Request): Promise<Response> {
-        let categories = await req.json() as ICategory[];
+        let categories: ICategory = await req.json() as ICategory;
         try {
             if (!categories) return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
 
-            if (!categories || categories.length === 0) {
+            if (!categories) {
                 return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
             };
 
-
-
-            categories.map(async (cat) => {
-                const newCategory = new Category({
-                    id: cat.id,
-                    name: cat.name,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    lastTouched: new Date(),
-                    lastTouchedBy: null as any,
-                });
-
-                await this.kafka([{
-                    key: "category.add",
-                    value: JSON.stringify({
-                        id: newCategory.id,
-                        name: newCategory.name,
-                        createdAt: newCategory.createdAt.toISOString(),
-                        updatedAt: newCategory.updatedAt.toISOString(),
-                        lastTouched: newCategory.lastTouched.toISOString(),
-                        lastTouchedBy: newCategory.lastTouchedBy ? newCategory.lastTouchedBy.id : "null"
-                    })
-                }])
-
-                await newCategory.save();
+            const newCategory = new Category({
+                id: categories.id ?? randomUUID(),
+                name: categories.name,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                lastTouched: new Date(),
+                lastTouchedBy: null as any,
             });
+
+            await this.kafka([{
+                key: "category.add",
+                value: JSON.stringify({
+                    id: newCategory.id,
+                    name: newCategory.name,
+                    createdAt: newCategory.createdAt.toISOString(),
+                    updatedAt: newCategory.updatedAt.toISOString(),
+                    lastTouched: newCategory.lastTouched.toISOString(),
+                    lastTouchedBy: newCategory.lastTouchedBy ? newCategory.lastTouchedBy.id : "null"
+                })
+            }])
+
+            log.trace(`Adding new category: ${newCategory.name} with ID: ${newCategory.id}`);
+
+            await newCategory.save();
+            
 
             return Response.json({ success: true, data: categories }, { status: 200 });
         } catch (error) {

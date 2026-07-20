@@ -25,6 +25,11 @@ export class UserController extends BaseController {
         super({ topic: "users" });
     }
 
+    @Get("/test", 0)
+    async getTest(_req?: Request) {
+        return Response.json({ success: true }, { status: 200 });
+    }
+
     @Get("/", 0)
     async getAllUsers(_req?: Request) {
         const users = await User.getAll();
