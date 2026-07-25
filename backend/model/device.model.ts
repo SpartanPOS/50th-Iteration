@@ -44,7 +44,6 @@ export class Device extends BaseModel<Device> {
     name!: string;
     publicKey!: string;
     identifier!: string;
-    lastTouched!: Date;
 
     constructor(data?: Partial<Device>) {
         super(data, deviceRepository);
@@ -53,18 +52,10 @@ export class Device extends BaseModel<Device> {
         }
     }
 
-    async fromEntity(entity: any): Promise<Device> {
-        const device = new Device();
-        device.id = entity.id;
-        device.name = entity.name;
-        device.publicKey = entity.publicKey;
-        device.identifier = entity.identifier;
-        device.createdAt = entity.createdAt;
-        device.updatedAt = entity.updatedAt;
-        device.lastTouched = entity.lastTouched;
-        device.touchedBy = entity.lastTouchedBy;
-        Object.assign(this, device);
-        return this;
+    fromEntity(entity: any): Device | null {
+        if (!entity) return null;
+        const device = new Device({ id: entity.id, name: entity.name, publicKey: entity.publicKey, identifier: entity.identifier, createdAt: entity.createdAt, updatedAt: entity.updatedAt, lastTouched: entity.lastTouched, touchedBy: entity.touchedBy });
+        return device;
     }
 
     async toEntityData(): Promise<Record<string, any>> {
@@ -86,40 +77,19 @@ export class Device extends BaseModel<Device> {
         return this;
     }
 
-    // static async getAll(): Promise<Device[]> {
-    //     const entities = await deviceRepository.search().returnAll();
-    //     const devices: Device[] = [];
-    //     for (const entity of entities) {
-    //         const device = await this.fromEntity(entity);
-    //         devices.push(device);
-    //     }
-    //     return devices;
-    // }
-
-    // async getByID(id: string): Promise<this | null> {
-    //     const entity = await deviceRepository.fetch(id);
-    //     if (!entity) return null;
-    //     return this.fromEntity(entity);
-    // }
-
-    // async getByName(name: string): Promise<this | null> {
-    //     const entities = await deviceRepository.search().where('name').equals(name).returnAll();
-    //     if (entities.length === 0) return null;
-    //     return this.fromEntity(entities[0]);
-    // }
 
     async getDeviceConfig(identifier: string): Promise<IDeviceConfig | null> {
-        const entity = await deviceRepository.search().where('identifier').equals(identifier).return.first();
-        if (!entity) return null;
-        const device = await this.fromEntity(entity);
-        return {
-            users: User.getAll().then((users: User[]) => users.map((user: User) => ({ id: user.id, username: user.username, email: user.email }))),
-            menus: Menu.getAll().then(menus => menus.map(menu => ({ id: menu.id, name: menu.name }))),
-            categories: Category.getAll().then(categories => categories.map(category => ({ id: category.id, name: category.name }))),
-            items: Item.getAll().then(items => items.map(item => ({ id: item.id, name: item.name }))),
-            store: Store.getAll().then(stores => stores.map(store => ({ id: store.id, name: store.name }))),
-            deviceRole: device.identifier as any,
-        }
+        // const entity = await deviceRepository.search().where('identifier').equals(identifier).return.first();
+        return null;
+        // const device = await this.fromEntity(entity);
+        // return {
+        //     users: User.getAll().then((users: User[]) => users.map((user: User) => ({ id: user.id, username: user.username, email: user.email }))),
+        //     menus: Menu.getAll().then(menus => menus.map(menu => ({ id: menu.id, name: menu.name }))),
+        //     categories: Category.getAll().then(categories => categories.map(category => ({ id: category.id, name: category.name }))),
+        //     items: Item.getAll().then(items => items.map(item => ({ id: item.id, name: item.name }))),
+        //     store: Store.getAll().then(stores => stores.map(store => ({ id: store.id, name: store.name }))),
+        //     deviceRole: device.identifier as any,
+        // }
     }
 
 }
