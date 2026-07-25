@@ -1,23 +1,23 @@
 import { type IUser } from "./users.model";
-import type { Category } from "./category.model";
+import { Category } from "./category.model";
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
 import { log } from '../index';
 import type { BaseModel } from "./primitives/base.model";
+import { baseSchema } from "./primitives/base.model";
+import * as z from 'zod';
 
-export interface IItem {
-    id: number;
-    name: string;
-    category: Category;
-    description: string;
-    price: number;
-    sku: string;
-    createdAt: Date;
-    updatedAt: Date;
-    lastTouched: Date;
-    lastTouchedBy: IUser;
-    entityId: string;
-}
+const ItemDBSchema = baseSchema.extend({
+    category: z.union([z.string(), z.instanceof(Category)]),
+    name: z.string()
+        .min(1, { message: "Name cannot be empty" })
+        .max(100, { message: "Name cannot exceed 100 characters" }),
+    price: z.number().min(0, { message: "Price must be a non-negative number" }),
+    description: z.string().optional(),
+    sku: z.string().default("MISC-" + Math.floor(Math.random() * 10000).toString()),
+});
+
+export type IItem = z.infer<typeof ItemDBSchema>;
 
 const itemSchema = new Schema('Item', {
     id: { type: 'number', indexed: true },
@@ -47,12 +47,11 @@ export class Item implements BaseModel<Item> {
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: IUser;
+    touchedBy!: IUser;
     entityId?: string;
 
     constructor(data?: Partial<IItem>) {
         if (data) {
-            this.id = data.id ?? Math.floor(Math.random() * 1000000); // Generate a random ID if not provided
             Object.assign(this, data);
         }
     }

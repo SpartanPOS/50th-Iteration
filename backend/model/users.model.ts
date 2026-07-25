@@ -213,7 +213,7 @@ export class User implements BaseModel<User> {
             );
     }
 
-    getByID(id: string): Promise<User | null> {
+    static getByID(id: string): Promise<User | null> {
         return userRepository.fetch(id)
             .then(entity => User.fromEntity(entity));
     }
