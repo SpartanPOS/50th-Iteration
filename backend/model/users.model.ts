@@ -3,7 +3,7 @@ import redis from '../redis.ts'
 import { randomUUIDv7 } from 'bun';
 import { verifyJWT } from '../jwt.ts';
 import { log } from '../index.ts';
-import type { BaseModel } from './primitives/base.model.ts';
+import { BaseModel } from './primitives/base.model.ts';
 
 // Permission bit flags (4-byte hex: 32-bit integer)
 export const PermissionFlags = {
@@ -102,6 +102,8 @@ class Role {
     authLevel!: number;
     entityId?: string;
 
+    protected repository?: Repository<any>;
+
     constructor(
         data?: Partial<IRole>
     ) {
@@ -179,52 +181,32 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await userRepository.createIndex();
 }
 
-export class User implements BaseModel<User> {
-    id!: number;
+export class User extends BaseModel<User> {
     username!: string;
     email!: string;
     role!: Role;
     extraPermissions!: number;  // 32-bit hex permission flags
     passwordHash!: string;
-    createdAt!: Date;
-    updatedAt!: Date;
     lastTouched!: Date;
     lastTouchedBy!: IUser;
-    entityId?: string;
 
-    constructor(data?: Partial<IUser>) {
+    constructor(data?: Partial<User>) {
+        super(data, userRepository);
         if (data) {
             if (data.role === undefined) {
                 throw new Error("User role must be defined");
             }
             const normalizedRole: Role = typeof data.role === 'string'
-                ? (Roles.roles.find(r => r.name === data.role) ?? DefaultRoles.cashier)
+                ? (Roles.roles.find(r => r.name === data.role?.name) ?? DefaultRoles.cashier)
                 : (data.role as Role);
 
             Object.assign(this, data, { role: normalizedRole });
         }
     }
 
-    static getAll(): Promise<User[]> {
-        return userRepository.search().returnAll()
-            .then(entities => entities
-                .map(entity => User.fromEntity(entity))
-                .filter((user): user is User => user !== null)
-            );
-    }
-
-    static getByID(id: string): Promise<User | null> {
-        return userRepository.fetch(id)
-            .then(entity => User.fromEntity(entity));
-    }
-
-    static getByName(name: string): Promise<User | null> {
-        return userRepository.search().where('username').equals(name).return.first()
-            .then(entity => User.fromEntity(entity));
-    }
 
     // Constructs a Class instance from a raw Redis OM Entity object
-    static fromEntity(entity: any): User | null {
+    fromEntity(entity: any): User | null {
         // if (!entity || !entity.entityId) return null;
 
         let parsedUser: User | null = null;

@@ -3,7 +3,7 @@ import { Category } from "./category.model";
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
 import { log } from '../index';
-import type { BaseModel } from "./primitives/base.model";
+import { BaseModel, type CrudRepository } from "./primitives/base.model";
 import { baseSchema } from "./primitives/base.model";
 import * as z from 'zod';
 
@@ -37,27 +37,22 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await itemRepository.createIndex();
 }
 
-export class Item implements BaseModel<Item> {
-    id!: number;
+export class Item extends BaseModel<Item> {
     name!: string;
     category!: Category;
     sku!: string;
     description!: string;
     price!: number;
-    createdAt!: Date;
-    updatedAt!: Date;
-    lastTouched!: Date;
-    touchedBy!: IUser;
-    entityId?: string;
 
-    constructor(data?: Partial<IItem>) {
+    constructor(data?: Partial<Item>) {
+        super(data, itemRepository);
         if (data) {
             Object.assign(this, data);
         }
     }
 
     // Constructs a Class instance from a raw Redis OM Entity object
-    static fromEntity(entity: any): Item | null {
+    fromEntity(entity: any): Item | null {
         // if (!entity || !entity.entityId) return null;
 
         let parsedUser: IUser | null = null;
@@ -79,7 +74,7 @@ export class Item implements BaseModel<Item> {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
+            touchedBy: parsedUser as any,
             entityId: entity.entityId
         });
         return item;
@@ -97,29 +92,7 @@ export class Item implements BaseModel<Item> {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
         };
-    }
-
-    static async getAll(): Promise<Item[]> {
-        const entities = await itemRepository.search().return.all();
-        log.withMetadata({ ents: entities }).trace("Fetched all items from repository");
-        return entities
-            .map(entity => Item.fromEntity(entity))
-            .filter((item): item is Item => item !== null);
-    }
-
-    // Static Finder Methods
-    async getByID(id: string): Promise<Item | null> {
-        const entity = await itemRepository.search().where('id').equals(id).return.first();
-        return Item.fromEntity(entity) as Item | null;
-    }
-
-    async getByName(name: string): Promise<(Item | null)> {
-        const entity = await itemRepository.search().where('name').equals(name).return.first();
-        if (!entity) return null;
-        Object.assign(this, entity);
-        return this ? this : null;
     }
 
     // Instance Persistence Methods

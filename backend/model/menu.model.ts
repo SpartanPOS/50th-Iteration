@@ -1,7 +1,7 @@
 import type { Item } from "./items.model";
 import type { User } from "./users.model";
 import type { Category } from "./category.model";
-import type { BaseModel } from "./primitives/base.model";
+import { BaseModel } from "./primitives/base.model";
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
 import * as z from "zod";
@@ -53,47 +53,20 @@ const zMenuSchema = z.object({
     lastTouchedBy: z.string(),
 });
 
-export class Menu implements IMenu, BaseModel<Menu> {
-    id!: number;
+export class Menu extends BaseModel<Menu> {
     name!: string;
     items!: Item[];
     categories!: Category[];
     datesActive!: MenuActiveDate[];
-    createdAt!: Date;
-    updatedAt!: Date;
-    lastTouched!: Date;
-    lastTouchedBy!: User;
-    entityId?: string;
 
-    constructor(data?: Partial<IMenu>) {
+    constructor(data?: Partial<Menu>) {
+        super(data, menuRepository);
         if (data) {
             Object.assign(this, data);
         }
     }
 
-    async getAll(): Promise<Menu[]> {
-        const entities = await menuRepository.search().returnAll();
-        return entities
-            .map(entity => Menu.fromEntity(entity))
-            .filter((menu): menu is Menu => menu !== null);
-    }
-
-    async getByID(id: string): Promise<Menu | null> {
-        const entity = await menuRepository.fetch(id);
-        if (!entity) return null;
-
-        return Menu.fromEntity(entity) || null;
-    }
-
-    async getByName(name: string): Promise<Menu> {
-        const entities = await menuRepository.search().where('name').equals(name).return.first();
-        if (!entities) {
-            throw new Error(`Menu with name ${name} not found`);
-        }
-        return Menu.fromEntity(entities) as Menu;
-    }
-
-    static fromEntity(entity: any): Menu | null {
+    fromEntity(entity: any): Menu | null {
         if (!entity || !entity.entityId) return null;
 
         let parsedUser: User | null = null;
@@ -114,7 +87,6 @@ export class Menu implements IMenu, BaseModel<Menu> {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
         });
         menu.entityId = entity.entityId;
         return menu;
@@ -130,7 +102,6 @@ export class Menu implements IMenu, BaseModel<Menu> {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
         };
     }
 

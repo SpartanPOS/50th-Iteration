@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
+
 export interface IModel<T = any> {
     id: string;
     createdAt: Date;
@@ -38,6 +39,7 @@ export abstract class BaseModel<T extends IModel> implements IModel {
     id!: string;
     createdAt!: Date;
     updatedAt!: Date;
+    lastTouched!: Date;
     touchedBy!: string;
     entityId?: string;
     protected repository?: CrudRepository<any>;
@@ -49,6 +51,21 @@ export abstract class BaseModel<T extends IModel> implements IModel {
             this.id = (data as any).id ?? randomUUID();
             Object.assign(this, data);
         }
+    }
+
+    static async getAll<TModel extends BaseModel<any>>(this: new () => TModel): Promise<TModel[]> {
+        const instance = new this();
+        return instance.getAll();
+    }
+
+    static async getById<TModel extends BaseModel<any>>(this: new () => TModel, id: string): Promise<TModel | null> {
+        const instance = new this();
+        return instance.getById(id);
+    }
+
+    static async getByName<TModel extends BaseModel<any>>(this: new () => TModel, name: string): Promise<TModel | null> {
+        const instance = new this();
+        return instance.getByName(name);
     }
 
     protected getIdField(): string {
