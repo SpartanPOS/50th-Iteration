@@ -1,18 +1,18 @@
 import type { IUser } from './users.model';
-import { BaseModel } from './primitives/base.model';
+import { BaseModel, baseSchema } from './primitives/base.model';
 import { Schema, Repository } from 'redis-om';
 import { randomUUID } from 'crypto';
 import { log } from '../index';
 import redis from '../redis';
 
-export interface ICategory {
-    id: string;
-    name: string;
-    createdAt: Date;
-    updatedAt: Date;
-    lastTouched: Date;
-    lastTouchedBy: IUser;
-}
+import * as z from 'zod';
+
+
+export const CategoryDBSchema = baseSchema.extend({
+    name: z.string()
+    .min(1, { message: "Name cannot be empty" })
+    .max(50, { message: "Name cannot exceed 50 characters" }),
+});
 
 const catSchema = new Schema('Category', {
     id: { type: 'string', indexed: true },
@@ -37,7 +37,6 @@ export class Category extends BaseModel<Category> {
     constructor(data?: Partial<Category>) {
         super(data, categoryRepository);
         if (data) {
-            this.id = data.id ?? randomUUID();
             Object.assign(this, data);
         }
     }
@@ -63,14 +62,16 @@ export class Category extends BaseModel<Category> {
 
     // Serializes the instance back into format suitable for Redis OM
     toEntityData(): Record<string, any> {
-        return {
+        let parsed = CategoryDBSchema.parse({
             id: this.id,
             name: this.name,
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
             lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
-        };
+        });
+
+        return parsed;
     }
 
     // Constructs a Class instance from a raw Redis OM Entity object

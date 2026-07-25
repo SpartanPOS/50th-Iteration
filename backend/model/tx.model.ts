@@ -3,10 +3,8 @@ import type { IUser } from "./users.model";
 import type { BaseModel } from "./primitives/base.model";
 import { Schema, Repository } from 'redis-om';
 
-
-
 export interface ITXItem {
-    id: number;
+    id: string;
     name: string;
     price: number;
     quantity: number;
@@ -14,16 +12,16 @@ export interface ITXItem {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: number;
+    lastTouchedBy: IUser;
 }
 
 export interface IActionLog {
-    id: number;
+    id: string;
     headerHash: string;
 }
 
 export interface ITX {
-    id: number;
+    id: string;
     assignedUser: IUser;
     storeId: string;
     total: number;
@@ -39,7 +37,7 @@ export interface ITX {
 }
 
 const txSchema = new Schema('TX', {
-    id: { type: 'number', indexed: true },
+    id: { type: 'string', indexed: true },
     assignedUser: { type: 'string' },
     storeId: { type: 'string' },
     total: { type: 'number' },
@@ -59,8 +57,8 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await txRepository.createIndex();
 }
     
-export class tx implements ITX, BaseModel {
-    id!: number;
+export class tx implements ITX, BaseModel<tx> {
+    id!: string;
     assignedUser!: IUser;
     storeId!: string;
     total!: number;

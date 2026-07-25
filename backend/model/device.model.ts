@@ -1,9 +1,11 @@
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
-import type { BaseModel } from "./primitives/base.model";
+import { BaseModel, baseSchema } from "./primitives/base.model";
 import type { IDeviceConfig } from "./primitives/deviceconfig.model";
 import { User } from "./users.model";
 import { Menu } from "./menu.model";
+
+import * as z from "zod";
 
 interface IDevice {
     id: string;
@@ -13,8 +15,14 @@ interface IDevice {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: string;
+    touchedBy: string;
 }
+
+export const DeviceSchema = baseSchema.extend({
+    name: z.string(),
+    publicKey: z.string().min(256, { message: "Public key must be at least 256 characters long" }).max(256, { message: "Public key must be at most 256 characters long" }),
+    identifier: z.string().nullable(),
+});
 
 const deviceSchema = new Schema('Device', {
     id: { type: 'string', indexed: true },
@@ -32,23 +40,20 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await deviceRepository.createIndex();
 }
 
-export class Device implements IDevice, BaseModel {
-    id!: string
+export class Device extends BaseModel<Device> {
     name!: string;
     publicKey!: string;
     identifier!: string;
-    createdAt!: Date;
-    updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: string;
 
-    constructor(data?: Partial<IDevice>) {
+    constructor(data?: Partial<Device>) {
+        super(data, deviceRepository);
         if (data) {
             Object.assign(this, data);
         }
     }
 
-    async fromEntity(entity: any): Promise<this> {
+    async fromEntity(entity: any): Promise<Device> {
         const device = new Device();
         device.id = entity.id;
         device.name = entity.name;
@@ -57,7 +62,7 @@ export class Device implements IDevice, BaseModel {
         device.createdAt = entity.createdAt;
         device.updatedAt = entity.updatedAt;
         device.lastTouched = entity.lastTouched;
-        device.lastTouchedBy = entity.lastTouchedBy;
+        device.touchedBy = entity.lastTouchedBy;
         Object.assign(this, device);
         return this;
     }
@@ -71,7 +76,7 @@ export class Device implements IDevice, BaseModel {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy,
+            touchedBy: this.touchedBy,
         };
     }
 
@@ -81,34 +86,34 @@ export class Device implements IDevice, BaseModel {
         return this;
     }
 
-    async getAll(): Promise<Device[]> {
-        const entities = await deviceRepository.search().returnAll();
-        const devices: Device[] = [];
-        for (const entity of entities) {
-            const device = await this.fromEntity(entity);
-            devices.push(device);
-        }
-        return devices;
-    }
+    // static async getAll(): Promise<Device[]> {
+    //     const entities = await deviceRepository.search().returnAll();
+    //     const devices: Device[] = [];
+    //     for (const entity of entities) {
+    //         const device = await this.fromEntity(entity);
+    //         devices.push(device);
+    //     }
+    //     return devices;
+    // }
 
-    async getByID(id: string): Promise<this | null> {
-        const entity = await deviceRepository.fetch(id);
-        if (!entity) return null;
-        return this.fromEntity(entity);
-    }
+    // async getByID(id: string): Promise<this | null> {
+    //     const entity = await deviceRepository.fetch(id);
+    //     if (!entity) return null;
+    //     return this.fromEntity(entity);
+    // }
 
-    async getByName(name: string): Promise<this | null> {
-        const entities = await deviceRepository.search().where('name').equals(name).returnAll();
-        if (entities.length === 0) return null;
-        return this.fromEntity(entities[0]);
-    }
+    // async getByName(name: string): Promise<this | null> {
+    //     const entities = await deviceRepository.search().where('name').equals(name).returnAll();
+    //     if (entities.length === 0) return null;
+    //     return this.fromEntity(entities[0]);
+    // }
 
     async getDeviceConfig(identifier: string): Promise<IDeviceConfig | null> {
         const entity = await deviceRepository.search().where('identifier').equals(identifier).return.first();
         if (!entity) return null;
         const device = await this.fromEntity(entity);
         return {
-            users: User.getAll().then(users => users.map(user => ({ id: user.id, username: user.username, email: user.email }))),
+            users: User.getAll().then((users: User[]) => users.map((user: User) => ({ id: user.id, username: user.username, email: user.email }))),
             menus: Menu.getAll().then(menus => menus.map(menu => ({ id: menu.id, name: menu.name }))),
             categories: Category.getAll().then(categories => categories.map(category => ({ id: category.id, name: category.name }))),
             items: Item.getAll().then(items => items.map(item => ({ id: item.id, name: item.name }))),

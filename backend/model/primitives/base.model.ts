@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { z } from "zod";
 
 export interface IModel<T = any> {
     id: string;
@@ -7,6 +8,14 @@ export interface IModel<T = any> {
     touchedBy: string;
     entityId?: string;
 }
+
+export const baseSchema = z.object({
+    id: z.uuid().default(() => randomUUID()),
+    createdAt: z.date().default(() => new Date()),
+    updatedAt: z.date().default(() => new Date()),
+    touchedBy: z.string().nullable(),
+    entityId: z.string().optional(),
+});
 
 type SearchResult<TEntity> = {
     first(): Promise<TEntity | null>;
