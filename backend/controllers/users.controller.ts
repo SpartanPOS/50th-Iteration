@@ -38,7 +38,7 @@ export class UserController extends BaseController {
     }
 
     async __GetUserById(id: string) {
-        let user = await User.getByID(id);
+        let user = await User.getById(id);
         if (!user) {
             log.warn(`No user found with ID: ${id}`);
             return null;
@@ -53,7 +53,7 @@ export class UserController extends BaseController {
     }
 
     async __ValidateUserCredentials(username: string, password: string, auth_level: number): Promise<User | null> {
-        const user: User | null = await User.getByName(username);
+        const user: User | null = await User.getByUsername(username);
         if (!user) {
             log.warn(`No user found with username: ${username}`);
             return null;

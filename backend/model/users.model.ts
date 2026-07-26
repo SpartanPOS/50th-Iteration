@@ -252,6 +252,10 @@ export class User extends BaseModel<User> {
         };
     }
 
+    static getByUsername(username: string): Promise<User | null> {
+        return userRepository.search().where('username').equals(username).return.first().then(entity => new User().fromEntity(entity));
+    }
+
 
 
     // Instance Persistence Methods
