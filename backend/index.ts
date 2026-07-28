@@ -123,6 +123,8 @@ async function main() {
                     }
                 }
             } else {
+                log.trace(`Using cached route config for: ${lookupKey}`);
+                log.trace("Route request body metadata: " + JSON.stringify(await req.clone().json().catch(() => ({}))));
                 routeParams = extractPathParams(routeConfig.routePath, pathname) ?? undefined;
             }
             const requestMetadata = {
