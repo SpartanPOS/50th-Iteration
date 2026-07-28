@@ -10,7 +10,7 @@ export interface IStore {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;
 }
 
 const storeSchema = new Schema('Store', {
@@ -20,7 +20,7 @@ const storeSchema = new Schema('Store', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
 export const storeRepository = new Repository(storeSchema, redis as any);
@@ -35,7 +35,6 @@ export class Store implements IStore, BaseModel {
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: IUser;
     entityId?: string;
 
     constructor(data?: Partial<IStore>) {
@@ -78,7 +77,7 @@ export class Store implements IStore, BaseModel {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
+            touchedBy: parsedUser as any,
         });
         store.entityId = entity.entityId;
         return store;
@@ -93,7 +92,7 @@ export class Store implements IStore, BaseModel {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
+            touchedBy: this.touchedBy ? JSON.stringify(this.touchedBy) : null,
         };
     }
 

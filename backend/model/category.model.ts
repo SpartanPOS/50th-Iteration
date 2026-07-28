@@ -20,7 +20,7 @@ const catSchema = new Schema('Category', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
 export const categoryRepository = new Repository(catSchema, redis as any);
@@ -45,6 +45,8 @@ export class Category extends BaseModel<Category> {
             name: this.name,
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
+            lastTouched: this.lastTouched,
+            touchedBy: this.touchedBy ? JSON.stringify(this.touchedBy) : "null",
         });
 
         return parsed;
@@ -55,9 +57,9 @@ export class Category extends BaseModel<Category> {
         if (!entity) return null;
 
         let parsedUser: IUser | null = null;
-        if (entity.lastTouchedBy) {
+        if (entity.touchedBy) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedUser = JSON.parse(entity.touchedBy);
             } catch {
                 // Fallback if it is not stringified JSON (e.g. raw ID or string)
             }

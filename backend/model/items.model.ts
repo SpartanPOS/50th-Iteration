@@ -20,7 +20,7 @@ const ItemDBSchema = baseSchema.extend({
 export type IItem = z.infer<typeof ItemDBSchema>;
 
 const itemSchema = new Schema('Item', {
-    id: { type: 'number', indexed: true },
+    id: { type: 'string', indexed: true },
     name: { type: 'string' },
     category: { type: 'string' },
     description: { type: 'string' },
@@ -28,7 +28,7 @@ const itemSchema = new Schema('Item', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
     entityId: { type: 'string' }
 });
 
@@ -56,9 +56,9 @@ export class Item extends BaseModel<Item> {
         // if (!entity || !entity.entityId) return null;
 
         let parsedUser: IUser | null = null;
-        if (entity.lastTouchedBy) {
+        if (entity.touchedBy) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedUser = JSON.parse(entity.touchedBy);
             } catch {
                 // Fallback if it is not stringified JSON (e.g. raw ID or string)
             }
@@ -74,7 +74,6 @@ export class Item extends BaseModel<Item> {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            touchedBy: parsedUser as any,
             entityId: entity.entityId
         });
         return item;

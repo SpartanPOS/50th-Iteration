@@ -15,7 +15,7 @@ interface IUser {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: number | null;
+    touchedBy: number | null;
 }
 
 @Controller("/users")

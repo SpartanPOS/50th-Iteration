@@ -105,15 +105,16 @@ export class AdminController extends BaseController {
      */
     @Post("/menu/add", 0)
     async addMenu(req: Request): Promise<Response> {
-        const menus = await req.json() as Menu[];
+        const menu = await req.json() as { name: string, items?: Item[], categories?: Category[], datesActive?: { startDate: string, endDate: string }[] };
 
+        if (!menu) return Response.json({ success: false, message: "No menu provided" }, { status: 400 });
         const newMenus: Menu[] = [];
         try {
-            for (const menu of menus) {
+            // for (const menu of menus) {
                 let existingItems: Item[] = [];
                 for (const item of menu.items) {
                     //check if item exists (if has id load id, or search by name)
-                    let existingItem = (await Item.byName(item.name))[0];
+                    let existingItem = (await Item.getByName(item.name));
                     if (existingItem) {
                         existingItems.push(existingItem);
                     } else {
@@ -123,7 +124,7 @@ export class AdminController extends BaseController {
 
                 let existingCategories: Category[] = [];
                 for (const category of menu.categories) {
-                    let existingCategory = (await Category.byName(category.name))[0];
+                    let existingCategory = (await Category.getByName(category.name));
                     if (existingCategory) {
                         existingCategories.push(existingCategory);
                     } else {
@@ -151,12 +152,11 @@ export class AdminController extends BaseController {
                     // + newMenu.datesActive.map(d => d.startDate.toISOString() + "-" + d.endDate.toISOString()).join(",")
                 }])
                 await newMenu.save();
-                newMenus.push(newMenu);
-            }
+            // }
 
             return Response.json({ success: true, data: newMenus }, { status: 200 });
         } catch (error) {
-            log.error('Error fetching users: ' + error);
+            log.error('Error adding new menu: ' + error);
             return new Response("API Error:", { status: 402 });
         }
     }
@@ -169,7 +169,7 @@ export class AdminController extends BaseController {
     **/
     @Post("/category/add", 0)
     async addCategory(req: Request): Promise<Response> {
-        let categories: ICategory = await req.json() as ICategory;
+        let categories: ICategory = await req.json() as { name: string, id?: string };
         try {
             if (!categories) return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
 
@@ -177,13 +177,16 @@ export class AdminController extends BaseController {
                 return Response.json({ success: false, message: "No categories provided" }, { status: 400 });
             };
 
+            // if (Category.getByName(categories.name) !== null) {
+            //     return Response.json({ success: false, message: "Category with this name already exists" }, { status: 400 });
+            // }
+
             const newCategory = new Category({
                 id: categories.id ?? randomUUID(),
                 name: categories.name,
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 lastTouched: new Date(),
-                lastTouchedBy: null as any,
             });
 
             await this.kafka([{
@@ -194,7 +197,7 @@ export class AdminController extends BaseController {
                     createdAt: newCategory.createdAt.toISOString(),
                     updatedAt: newCategory.updatedAt.toISOString(),
                     lastTouched: newCategory.lastTouched.toISOString(),
-                    lastTouchedBy: newCategory.lastTouchedBy ? newCategory.lastTouchedBy.id : "null"
+                    touchedBy: newCategory.touchedBy ? newCategory.touchedBy : "null"
                 })
             }])
 
@@ -203,7 +206,7 @@ export class AdminController extends BaseController {
             await newCategory.save();
             
 
-            return Response.json({ success: true, data: categories }, { status: 200 });
+            return Response.json({ success: true, data: newCategory }, { status: 200 });
         } catch (error) {
             log.error('Error fetching users: ' + error);
             return new Response("Internal Server Error", { status: 500 });
@@ -228,7 +231,7 @@ export class AdminController extends BaseController {
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 lastTouched: new Date(),
-                lastTouchedBy: null as any,
+                touchedBy: null as any,
             });
             await newUser.save();
 
@@ -241,7 +244,7 @@ export class AdminController extends BaseController {
                     createdAt: newUser.createdAt.toISOString(),
                     updatedAt: newUser.updatedAt.toISOString(),
                     lastTouched: newUser.lastTouched.toISOString(),
-                    lastTouchedBy: newUser.lastTouchedBy ? newUser.lastTouchedBy.id : "null"
+                    touchedBy: newUser.touchedBy ? newUser.touchedBy.id : "null"
                 })
             }])
 

@@ -32,7 +32,7 @@ const deviceSchema = new Schema('Device', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
 export const deviceRepository = new Repository(deviceSchema, redis as any);

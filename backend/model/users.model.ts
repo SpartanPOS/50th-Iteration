@@ -44,7 +44,7 @@ export interface IRole {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: number[];
+    touchedBy: string[];  // Array of user IDs who last touched this role
     authLevel: number;
 }
 
@@ -56,7 +56,7 @@ export class DefaultRoles {
         createdAt: new Date(),
         updatedAt: new Date(),
         lastTouched: new Date(),
-        lastTouchedBy: [],
+        touchedBy: [],
         authLevel: 1,
     };
     static readonly cashier: Role = {
@@ -66,7 +66,7 @@ export class DefaultRoles {
         createdAt: new Date(),
         updatedAt: new Date(),
         lastTouched: new Date(),
-        lastTouchedBy: [],
+        touchedBy: [],
         authLevel: 0,
     };
 
@@ -82,7 +82,7 @@ export const roleSchema = new Schema('Role', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'number[]' },
+    touchedBy: { type: 'number[]' },
     authLevel: { type: 'number' },
 });
 
@@ -98,7 +98,7 @@ class Role {
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: number[];
+    touchedBy!: string[];
     authLevel!: number;
     entityId?: string;
 
@@ -120,7 +120,7 @@ class Role {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: entity.lastTouchedBy,
+            touchedBy: entity.touchedBy,
             authLevel: entity.authLevel,
         });
     }
@@ -158,12 +158,12 @@ export interface IUser {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;  // User ID of the last user who modified this user
     entityId?: string;
 }
 
 export const userSchema = new Schema('User', {
-    id: { type: 'number', indexed: true },
+    id: { type: 'string', indexed: true },
     username: { type: 'string' },
     email: { type: 'string' },
     role: { type: 'string' },
@@ -172,7 +172,7 @@ export const userSchema = new Schema('User', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'number[]' },
+    touchedBy: { type: 'string[]' },
     entityId: { type: 'string' },
 });
 
@@ -187,8 +187,6 @@ export class User extends BaseModel<User> {
     role!: Role;
     extraPermissions!: number;  // 32-bit hex permission flags
     passwordHash!: string;
-    lastTouched!: Date;
-    lastTouchedBy!: IUser;
 
     constructor(data?: Partial<User>) {
         super(data, userRepository);
@@ -230,7 +228,7 @@ export class User extends BaseModel<User> {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
+            touchedBy: parsedUser as any,
         });
         user.entityId = entity.entityId;
         return user;
@@ -248,7 +246,7 @@ export class User extends BaseModel<User> {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
+            touchedBy: this.touchedBy ? JSON.stringify(this.touchedBy) : null,
         };
     }
 

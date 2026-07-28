@@ -20,7 +20,7 @@ export interface IMenu {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: User;
+    touchedBy: string | null;
 }
 
 const menuSchema = new Schema('Menu', {
@@ -32,7 +32,7 @@ const menuSchema = new Schema('Menu', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
 const zMenuSchema = z.object({
@@ -50,7 +50,7 @@ const zMenuSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string(),
     lastTouched: z.string(),
-    lastTouchedBy: z.string(),
+    touchedBy: z.string(),
 });
 
 export class Menu extends BaseModel<Menu> {
@@ -70,9 +70,9 @@ export class Menu extends BaseModel<Menu> {
         if (!entity || !entity.entityId) return null;
 
         let parsedUser: User | null = null;
-        if (entity.lastTouchedBy) {
+        if (entity.touchedBy) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedUser = JSON.parse(entity.touchedBy);
             } catch {
                 // Fallback if it is not stringified JSON (e.g. raw ID or string)
             }
