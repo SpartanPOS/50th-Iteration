@@ -12,7 +12,7 @@ export interface ITXItem {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;
 }
 
 export interface IActionLog {
@@ -33,7 +33,7 @@ export interface ITX {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;
 }
 
 const txSchema = new Schema('TX', {
@@ -49,7 +49,7 @@ const txSchema = new Schema('TX', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
 const txRepository = new Repository(txSchema, redis as any);
@@ -70,8 +70,7 @@ export class tx implements ITX, BaseModel<tx> {
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: IUser;
-
+    touchedBy!: string | null;
 
     constructor(
         Partial: Partial<tx> = {}
@@ -124,7 +123,7 @@ export class tx implements ITX, BaseModel<tx> {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: JSON.stringify(this.lastTouchedBy),
+            touchedBy: JSON.stringify(this.touchedBy),
         };
         return entityData;
     }
