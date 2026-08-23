@@ -3,6 +3,7 @@ import { LogLayer } from "loglayer";
 import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
 
 import "reflect-metadata";
+import { AdminController } from "./controllers/config.controller";
 import { ItemController } from "./controllers/items.controller";
 import { UserController } from "./controllers/users.controller";
 import type { RouteDefinition, RouteHandler } from "./decorator";
@@ -22,7 +23,7 @@ log.info('Starting the server...');
 
 async function main() {
     // allow any controller constructor (avoid forcing an index-signature on instances)
-    const controllers: Array<new (...args: any[]) => unknown> = [ItemController, UserController, TXController, MenuController];
+    const controllers: Array<new (...args: any[]) => unknown> = [ItemController, AdminController, UserController, TXController, MenuController];
 
     interface RouteConfig {
         handler: RouteHandler;

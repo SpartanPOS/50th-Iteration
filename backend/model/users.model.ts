@@ -223,6 +223,13 @@ export class User implements IUser {
             .filter((user): user is User => user !== null);
     }
 
+    static async getAll(): Promise<User[]> {
+        const entities = await userRepository.search().returnAll();
+        return entities
+            .map(entity => User.fromEntity(entity))
+            .filter((user): user is User => user !== null);
+    }
+
     // Instance Persistence Methods
     async save(): Promise<User> {
         const data = this.toEntityData();
