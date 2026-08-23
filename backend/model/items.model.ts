@@ -7,6 +7,7 @@ import { BaseModel, type CrudRepository } from "./primitives/base.model";
 import { baseSchema } from "./primitives/base.model";
 import * as z from 'zod';
 
+
 const ItemDBSchema = baseSchema.extend({
     category: z.union([z.string(), z.instanceof(Category)]),
     name: z.string()

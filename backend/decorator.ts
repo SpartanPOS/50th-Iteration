@@ -110,3 +110,4 @@ function createRouteDecorator(method: RouteDefinition['method']) {
 
 export const Get = createRouteDecorator('GET');
 export const Post = createRouteDecorator('POST');
+export const Delete = createRouteDecorator('DELETE');

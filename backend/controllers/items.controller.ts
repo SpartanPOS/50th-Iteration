@@ -1,5 +1,5 @@
 import { log } from '../index';
-import { Controller, Get } from '../decorator';
+import { Controller, Get, Delete } from '../decorator';
 import { Item } from '../model/items.model';
 import { BaseController } from './primitives/base.controller';
 
@@ -35,5 +35,25 @@ export class ItemController extends BaseController {
         }]);
         
         return Response.json(item)
+    }
+
+    @Delete('/:id', 1)
+    async deleteItem(_req: Request, params?: Record<string, string>) {
+        const itemId = params?.id;
+        log.withMetadata({ itemId }).trace('Delete item by ID');
+        if (!itemId) {
+            return Response.json({ error: 'Missing item id' }, { status: 400 });
+        }
+        const item = await Item.byId(itemId);
+        if (!item) {
+            return Response.json({ error: 'Item not found' }, { status: 404 });
+        }
+        await Item.delete(itemId);
+        log.withMetadata({ itemId }).trace('Item deleted');
+        await this.kafka([{
+            key: "item.delete",
+            value: itemId
+        }]);
+        return Response.json({ message: 'Item deleted successfully' });
     }
 }

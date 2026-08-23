@@ -116,6 +116,11 @@ function Store() {
 
 		
 			console.log('Reader payment completed:', processData);
+
+			setTimeout(() => {
+				setMainContent(<ItemsAvailable items={sampleItems} addToCart={addToCart} />);
+				setCartItems([]);
+			}, 3000);
 		
 	}
 		

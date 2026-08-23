@@ -76,6 +76,23 @@ export abstract class BaseModel<T extends IModel> implements IModel {
         return "name";
     }
 
+    async delete(): Promise<void> {
+        if (!this.repository) {
+            throw new Error("Repository is not configured for this model");
+        }
+
+        const entity = await this.repository
+            .search()
+            .where(this.getIdField())
+            .equals(this.id)
+            .return.first();
+
+        if (entity) {
+            // Assuming the repository has a delete method
+            await (this.repository as any).delete(entity);
+        }
+    }
+
     async getAll(): Promise<T[]> {
         if (!this.repository) {
             throw new Error("Repository is not configured for this model");

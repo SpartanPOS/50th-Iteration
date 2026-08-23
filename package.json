@@ -23,7 +23,7 @@
     "compile": "tsc",
     "fix": "gts fix",
     "dev:server": "bun run --watch backend/index.ts",
-    "dev:web": "bun run --watch web/index.tsx"
+    "dev:web": "cd web; bun dev"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",
