@@ -28,6 +28,8 @@ yarn-error.log*
 .env*.local
 .env
 
+**/.env
+
 # vercel
 .vercel
 
@@ -39,4 +41,5 @@ dist/
 **/node_modules/**
 **/dist/**
 **/.logfire/**
+backend/.env
 backend/.env
