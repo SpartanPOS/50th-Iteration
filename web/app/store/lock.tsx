@@ -66,6 +66,7 @@ function LockScreen() {
                     }).then(res => {
                         if (res.ok) {
                             setIsLocked(false);
+                            localStorage.setItem('token', data.token);
                         }
                     });
                 });

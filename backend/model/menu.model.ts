@@ -1,4 +1,4 @@
-import type { Item } from "./items.model";
+import type { Item } from "./item.model";
 import type { User } from "./users.model";
 import type { Category } from "./category.model";
 import { BaseModel } from "./primitives/base.model";

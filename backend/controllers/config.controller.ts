@@ -5,13 +5,14 @@ import { log } from "../index";
 import { BaseController } from "./primitives/base.controller"
 import { DefaultRoles, User } from "../model/users.model";
 
-import type { IItem } from "../model/items.model";
+import type { IItem } from "../model/item.model";
 import type { ICategory } from "../model/category.model";
 import type { IMenu } from "../model/menu.model"
 
 import { Menu } from "../model/menu.model";
 import { Category } from "../model/category.model";
-import { Item } from "../model/items.model";
+import { Item } from "../model/item.model";
+import { items } from "../model/items.model";
 
 import { randomUUID } from "crypto";
 
@@ -97,7 +98,7 @@ export class AdminController extends BaseController {
                 let existingItems: Item[] = [];
                 for (const item of menu.items) {
                     //check if item exists (if has id load id, or search by name)
-                    let existingItem = (await Item.getByName(item.name));
+                    let existingItem = (await items.getByName(item.name));
                     if (existingItem) {
                         existingItems.push(existingItem);
                     } else {
