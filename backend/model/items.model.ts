@@ -1,23 +1,26 @@
 import { type IUser } from "./users.model";
-import type { Category } from "./category.model";
+import { Category } from "./category.model";
 import { Schema, Repository } from 'redis-om';
 import redis from '../redis';
+import { log } from '../index';
+import { BaseModel, type CrudRepository } from "./primitives/base.model";
+import { baseSchema } from "./primitives/base.model";
+import * as z from 'zod';
 
-export interface IItem {
-    id: number;
-    name: string;
-    category: Category;
-    description: string;
-    price: number;
-    sku: string;
-    createdAt: Date;
-    updatedAt: Date;
-    lastTouched: Date;
-    lastTouchedBy: IUser;
-}
+const ItemDBSchema = baseSchema.extend({
+    category: z.union([z.string(), z.instanceof(Category)]),
+    name: z.string()
+        .min(1, { message: "Name cannot be empty" })
+        .max(100, { message: "Name cannot exceed 100 characters" }),
+    price: z.number().min(0, { message: "Price must be a non-negative number" }),
+    description: z.string().optional(),
+    sku: z.string().default("MISC-" + Math.floor(Math.random() * 10000).toString()),
+});
+
+export type IItem = z.infer<typeof ItemDBSchema>;
 
 const itemSchema = new Schema('Item', {
-    id: { type: 'number', indexed: true },
+    id: { type: 'string', indexed: true },
     name: { type: 'string' },
     category: { type: 'string' },
     description: { type: 'string' },
@@ -25,7 +28,8 @@ const itemSchema = new Schema('Item', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
+    entityId: { type: 'string' }
 });
 
 export const itemRepository = new Repository(itemSchema, redis as any);
@@ -33,33 +37,28 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await itemRepository.createIndex();
 }
 
-export class Item implements IItem {
-    id!: number;
+export class Item extends BaseModel<Item> {
     name!: string;
     category!: Category;
     sku!: string;
     description!: string;
     price!: number;
-    createdAt!: Date;
-    updatedAt!: Date;
-    lastTouched!: Date;
-    lastTouchedBy!: IUser;
-    entityId?: string;
 
-    constructor(data?: Partial<IItem>) {
+    constructor(data?: Partial<Item>) {
+        super(data, itemRepository);
         if (data) {
             Object.assign(this, data);
         }
     }
 
     // Constructs a Class instance from a raw Redis OM Entity object
-    static fromEntity(entity: any): Item | null {
-        if (!entity || !entity.entityId) return null;
+    fromEntity(entity: any): Item | null {
+        // if (!entity || !entity.entityId) return null;
 
         let parsedUser: IUser | null = null;
-        if (entity.lastTouchedBy) {
+        if (entity.touchedBy) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedUser = JSON.parse(entity.touchedBy);
             } catch {
                 // Fallback if it is not stringified JSON (e.g. raw ID or string)
             }
@@ -75,9 +74,8 @@ export class Item implements IItem {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
+            entityId: entity.entityId
         });
-        item.entityId = entity.entityId;
         return item;
     }
 
@@ -93,32 +91,11 @@ export class Item implements IItem {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
         };
     }
 
-    static async getAll(): Promise<Array<Item | null>> {
-        const entities = await itemRepository.search().returnAll();
-        return entities
-            .map(entity => Item.fromEntity(entity))
-            .filter((item): item is Item => item !== null);
-    }
-
-    // Static Finder Methods
-    static async byId(id: string): Promise<Item | null> {
-        const entity = await itemRepository.fetch(id);
-        return Item.fromEntity(entity);
-    }
-
-    static async byName(name: string): Promise<Item[]> {
-        const entities = await itemRepository.search().where('name').equals(name).returnAll();
-        return entities
-            .map(entity => Item.fromEntity(entity))
-            .filter((item): item is Item => item !== null);
-    }
-
     // Instance Persistence Methods
-    async save(): Promise<Item> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 

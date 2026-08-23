@@ -1,33 +1,52 @@
 import { serve } from "bun";
 import { LogLayer } from "loglayer";
 import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
+// import * as kafka from "./events/kafka";
+
+import { onNewClient, onMessage } from "./controllers/ws.controller";
 
 import "reflect-metadata";
-import { AdminController } from "./controllers/config.controller";
-import { ItemController } from "./controllers/items.controller";
-import { UserController } from "./controllers/users.controller";
+import resourceHandler from "./controllers/index";
+
+import { extractPathParams } from "./decorator";
 import type { RouteDefinition, RouteHandler } from "./decorator";
 import { verifyJWT } from "./jwt";
-import { TXController } from "./controllers/tx.controller";
-import { MenuController } from "./controllers/menu.controller";
+
+
+function pathPatternToRegExp(path: string): RegExp {
+    const pattern = path
+        .split("/")
+        .map(segment => {
+            if (segment.startsWith(":")) return "([^/]+)";
+            return segment.replace(/[-\\^$*+?.()|[\]{}]/g, "\\$&");
+        })
+        .join("/");
+    return new RegExp(`^${pattern}$`);
+}
 
 export const log = new LogLayer({
     prefix: "[Web Backend]",
+
     transport: getSimplePrettyTerminal({
         runtime: "node",
-        viewMode: "inline"
+        viewMode: "inline",
+        level: "trace"
     })
 });
+
+// import { kafka } from "./events/kafka";
 
 log.info('Starting the server...');
 
 async function main() {
     // allow any controller constructor (avoid forcing an index-signature on instances)
-    const controllers: Array<new (...args: any[]) => unknown> = [ItemController, AdminController, UserController, TXController, MenuController];
+    const controllers: Array<new (...args: any[]) => unknown> = resourceHandler;
 
     interface RouteConfig {
         handler: RouteHandler;
         authLevel: number;
+        pattern: RegExp;
+        routePath: string;
     }
 
     // Map to store runtime routes for fast lookup
@@ -38,7 +57,7 @@ async function main() {
         const instance = new ControllerClass();
         const basePath = Reflect.getMetadata("basePath", ControllerClass) as string | undefined;
         const routes = Reflect.getMetadata("routes", ControllerClass) as RouteDefinition[] | undefined;
-        log.info(`Checking controller: ${ControllerClass.name}, basePath: ${basePath}, routes count: ${routes?.length}`);
+        log.debug(`Checking controller: ${ControllerClass.name}, basePath: ${basePath}, routes count: ${routes?.length}`);
 
         if (!routes || !basePath) return;
 
@@ -46,6 +65,7 @@ async function main() {
             // Construct full path and normalize slashes
             const fullPath = `${basePath}${route.path}`.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
             const lookupKey = `${route.method}:${fullPath}`;
+            const pattern = pathPatternToRegExp(fullPath);
 
             // get the handler safely and validate
             const handler = (instance as Record<string, RouteHandler | undefined>)[route.methodName];
@@ -57,20 +77,56 @@ async function main() {
             routesMap.set(lookupKey, {
                 handler: handler.bind(instance),
                 authLevel: route.authLevel,
+                pattern,
+                routePath: fullPath,
             });
-            log.info(`Registered route: ${lookupKey} with authLevel ${route.authLevel}`);
+            log.debug(`Registered route: ${lookupKey} with authLevel ${route.authLevel}`);
         });
     });
 
     // Start the Bun Server
     const server = serve({
         port: 3000,
-        async fetch(req) {
+
+        websocket: {
+            open(ws) {
+                onNewClient(ws);
+                log.info(`WebSocket connection opened: ${ws.remoteAddress}`);
+
+            },
+            message(ws, message) {
+                onMessage(message);
+                log.info(`WebSocket message received from ${ws.remoteAddress}: ${message}`);
+            }
+        },
+
+        async fetch(req, server) {
+
+            if (server.upgrade(req)) {
+                return;
+            }
+
             const startTime = performance.now();
             const url = new URL(req.url);
             const pathname = url.pathname === "/" ? "/" : url.pathname.replace(/\/$/, "");
             const lookupKey = `${req.method}:${pathname}`;
-            const routeConfig = routesMap.get(lookupKey);
+            let routeConfig = routesMap.get(lookupKey);
+            let routeParams: Record<string, string> | undefined;
+
+            if (!routeConfig) {
+                for (const [key, config] of routesMap.entries()) {
+                    if (!key.startsWith(`${req.method}:`)) continue;
+                    if (config.pattern.test(pathname)) {
+                        routeConfig = config;
+                        routeParams = extractPathParams(config.routePath, pathname) ?? undefined;
+                        break;
+                    }
+                }
+            } else {
+                log.trace(`Using cached route config for: ${lookupKey}`);
+                log.trace("Route request body metadata: " + JSON.stringify(await req.clone().json().catch(() => ({}))));
+                routeParams = extractPathParams(routeConfig.routePath, pathname) ?? undefined;
+            }
             const requestMetadata = {
                 method: req.method,
                 path: url.pathname,
@@ -105,7 +161,7 @@ async function main() {
                         (req as any).user = decoded;
                     }
 
-                    return await routeConfig.handler(req);
+                    return await routeConfig.handler(req, routeParams);
                 } catch (err) {
                     log.error('Error handling request:' + err);
                     return new Response("Internal Server Error", { status: 500 });

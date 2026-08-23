@@ -1,6 +1,7 @@
 import type { IUser } from './users.model';
 import { Repository, Schema } from 'redis-om';
 import redis from '../redis';
+import type { BaseModel } from './primitives/base.model';
 
 export interface IStore {
     id: number;
@@ -9,7 +10,7 @@ export interface IStore {
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;
 }
 
 const storeSchema = new Schema('Store', {
@@ -19,7 +20,7 @@ const storeSchema = new Schema('Store', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
 export const storeRepository = new Repository(storeSchema, redis as any);
@@ -27,14 +28,13 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await storeRepository.createIndex();
 }
 
-export class Store implements IStore {
+export class Store implements IStore, BaseModel {
     id!: number;
     name!: string;
     location!: string;
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: IUser;
     entityId?: string;
 
     constructor(data?: Partial<IStore>) {
@@ -43,18 +43,32 @@ export class Store implements IStore {
         }
     }
 
+    getAll(): Promise<Store[]> {
+        return storeRepository.search().returnAll()
+            .then(entities => entities
+                .map(entity => Store.fromEntity(entity))
+                .filter((store): store is Store => store !== null)
+            );
+    }  
+
+    getByID(id: string): Promise<Store | null> {
+        return storeRepository.fetch(id)
+            .then(entity => Store.fromEntity(entity));
+    }
+
+    getByName(name: string): Promise<Store[]> {
+        return storeRepository.search().where('name').equals(name).returnAll() 
+            .then(entities => entities
+                .map(entity => Store.fromEntity(entity))
+                .filter((store): store is Store => store !== null)
+            );
+    }
+
     // Constructs a Class instance from a raw Redis OM Entity object
     static fromEntity(entity: any): Store | null {
         if (!entity || !entity.entityId) return null;
 
         let parsedUser: IUser | null = null;
-        if (entity.lastTouchedBy) {
-            try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
-            } catch {
-                // Fallback if it is not stringified JSON (e.g. raw ID or string)
-            }
-        }
 
         const store = new Store({
             id: entity.id,
@@ -63,7 +77,7 @@ export class Store implements IStore {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
+            touchedBy: parsedUser as any,
         });
         store.entityId = entity.entityId;
         return store;
@@ -78,7 +92,7 @@ export class Store implements IStore {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
+            touchedBy: this.touchedBy ? JSON.stringify(this.touchedBy) : null,
         };
     }
 
@@ -96,7 +110,7 @@ export class Store implements IStore {
     }
 
     // Instance Persistence Methods
-    async save(): Promise<Store> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 

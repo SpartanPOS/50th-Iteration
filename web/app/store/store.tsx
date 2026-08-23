@@ -5,13 +5,14 @@ import SideActions from '../components/side-actions';
 import SideCart from '../components/side-cart';
 import styles from './styling/store.module.css';
 import { Grid } from '~/components/grid';
+import LockScreen from './lock';
 
 function Store() {
 	const [CartItems, setCartItems] = useState<Item[]>([]);
 	const [sampleItems, setSampleItems] = useState<Item[]>([]);
 
 	useEffect(() => {
-		fetch('http://localhost:8000/item')
+		fetch('http://localhost:3000/items')
 			.then(response => response.json())
 			.then(items => setSampleItems(items as Item[]));
 	}, []);
@@ -53,6 +54,7 @@ function Store() {
 
 	return (
 		<div id='top-container' className={styles.topMargin}>
+			<LockScreen />
 			<Grid >
 				<SideCart items={CartItems} updateQuantity={updateQuantity} removeItem={removeItem} />
 				<SideActions handlePayNow={() => { console.log('Pay Now clicked'); }} />

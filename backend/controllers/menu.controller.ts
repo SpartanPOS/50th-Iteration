@@ -1,20 +1,43 @@
 import { Controller, Get } from '../decorator';
 import { Menu } from '../model/menu.model';
 import { log } from '../index';
+import { BaseController } from './primitives/base.controller';
 
-@Controller("/menu")
-export class MenuController {
-    @Get("/", 0)
+import type { IItem } from '../model/items.model';
+import type { ICategory } from '../model/category.model';
+
+export interface MenuActiveDate {
+    startDate: Date;
+    endDate: Date;
+}
+
+export interface IMenu {
+    id: number;
+    name: string;
+    items: IItem[];
+    categories: ICategory[];
+    datesActive: MenuActiveDate[];
+    createdAt: Date;
+    updatedAt: Date;
+}    
+
+@Controller('/menu')
+export class MenuController extends BaseController{
+    constructor() {
+        super({ topic: 'menu' });
+    }
+
+    @Get('/', 0)
     async getAllItems(_req?: Request) {
         const data = await Menu.getAll();
-        log.withMetadata({ data }).trace("Get all items");
+        log.withMetadata({ data }).trace('Get all items');
         return Response.json(data);
     }
 
-    @Get("/:id", 0)
+    @Get('/:id', 0)
     async getItemById(req: Request) {
         const data = await req.json() as { id: string }
-        log.withMetadata({ data }).trace("Get item by ID");
+        log.withMetadata({ data }).trace('Get item by ID');
         const item = await Menu.byId(data.id)
         return Response.json(item)
     }

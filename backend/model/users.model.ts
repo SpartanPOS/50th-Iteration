@@ -2,20 +2,49 @@ import { Repository, Schema } from 'redis-om'
 import redis from '../redis.ts'
 import { randomUUIDv7 } from 'bun';
 import { verifyJWT } from '../jwt.ts';
+import { log } from '../index.ts';
+import { BaseModel } from './primitives/base.model.ts';
 
-interface permissions {
-    id: number;
-    name: string;
-}
+// Permission bit flags (4-byte hex: 32-bit integer)
+export const PermissionFlags = {
+    READ: 0x00000001,      // bit 0
+    WRITE: 0x00000002,     // bit 1
+    DELETE: 0x00000004,    // bit 2
+    ADMIN: 0x00000008,     // bit 3
+    MANAGE_USERS: 0x00000010,  // bit 4
+    MANAGE_ROLES: 0x00000020,  // bit 5
+    MANAGE_ITEMS: 0x00000040,  // bit 6
+    MANAGE_MENU: 0x00000080,   // bit 7
+    VIEW_REPORTS: 0x00000100,  // bit 8
+    EXPORT_DATA: 0x00000200,   // bit 9
+} as const;
+
+export const PermissionUtils = {
+    hasPermission: (permissions: number, flag: number): boolean => {
+        return (permissions & flag) === flag;
+    },
+    addPermission: (permissions: number, flag: number): number => {
+        return permissions | flag;
+    },
+    removePermission: (permissions: number, flag: number): number => {
+        return permissions & ~flag;
+    },
+    togglePermission: (permissions: number, flag: number): number => {
+        return permissions ^ flag;
+    },
+    getAllPermissions: (): number => {
+        return Object.values(PermissionFlags).reduce((acc, flag) => acc | flag, 0);
+    }
+};
 
 export interface IRole {
     id: string;
     name: string;
-    permissions: permissions[];
+    permissions: number;  // 32-bit hex: bit flags for permissions
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: number[];
+    touchedBy: string[];  // Array of user IDs who last touched this role
     authLevel: number;
 }
 
@@ -23,21 +52,21 @@ export class DefaultRoles {
     static readonly admin: Role = {
         id: "019ece3c-368f-7000-ab47-19ef38690a74",
         name: "Admin",
-        permissions: [],
+        permissions: PermissionUtils.getAllPermissions(),  // All permissions
         createdAt: new Date(),
         updatedAt: new Date(),
         lastTouched: new Date(),
-        lastTouchedBy: [],
+        touchedBy: [],
         authLevel: 1,
     };
     static readonly cashier: Role = {
         id: "019ece3c-7ea0-7000-984c-733e852a2a01",
         name: "Cashier",
-        permissions: [],
+        permissions: PermissionFlags.READ | PermissionFlags.WRITE,  // Read and Write only
         createdAt: new Date(),
         updatedAt: new Date(),
         lastTouched: new Date(),
-        lastTouchedBy: [],
+        touchedBy: [],
         authLevel: 0,
     };
 
@@ -49,11 +78,11 @@ export class DefaultRoles {
 export const roleSchema = new Schema('Role', {
     id: { type: 'string', indexed: true },
     name: { type: 'string' },
-    permissions: { type: 'string[]' },
+    permissions: { type: 'number' },  // 32-bit hex permission flags
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'number[]' },
+    touchedBy: { type: 'number[]' },
     authLevel: { type: 'number' },
 });
 
@@ -62,16 +91,18 @@ if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await roleRepository.createIndex();
 }
 
-class Role implements IRole {
+class Role {
     id!: string;
     name!: string;
-    permissions!: permissions[];
+    permissions!: number;  // 32-bit hex permission flags
     createdAt!: Date;
     updatedAt!: Date;
     lastTouched!: Date;
-    lastTouchedBy!: number[];
+    touchedBy!: string[];
     authLevel!: number;
     entityId?: string;
+
+    protected repository?: Repository<any>;
 
     constructor(
         data?: Partial<IRole>
@@ -89,7 +120,7 @@ class Role implements IRole {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: entity.lastTouchedBy,
+            touchedBy: entity.touchedBy,
             authLevel: entity.authLevel,
         });
     }
@@ -102,6 +133,10 @@ export class Roles {
 
     static get roles(): readonly Role[] {
         return this._roles;
+    }
+
+    static hasAuthLevel(authLevel: number): boolean {
+        return this._roles.some(role => role.authLevel === authLevel);
     }
 
     static async loadRoles() {
@@ -117,64 +152,69 @@ export interface IUser {
     id: number;
     username: string;
     email: string;
-    role: DefaultRoles;
-    extraPermissions: permissions[];
+    role: string; // Role name
+    extraPermissions: number;  // 32-bit hex: bit flags for additional permissions
     passwordHash: string;
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;  // User ID of the last user who modified this user
     entityId?: string;
 }
 
 export const userSchema = new Schema('User', {
-    id: { type: 'number', indexed: true },
+    id: { type: 'string', indexed: true },
     username: { type: 'string' },
     email: { type: 'string' },
     role: { type: 'string' },
-    extraPermissions: { type: 'string[]' },
+    extraPermissions: { type: 'number' },  // 32-bit hex permission flags
     passwordHash: { type: 'string' },
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'number[]' },
+    touchedBy: { type: 'string[]' },
+    entityId: { type: 'string' },
 });
 
-/* use the client to create a Repository just for Persons */
-export const userRepository = new Repository(userSchema, redis as any);
+const userRepository = new Repository(userSchema, redis as any);
 if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
     await userRepository.createIndex();
 }
 
-export class User implements IUser {
-    id!: number;
+export class User extends BaseModel<User> {
     username!: string;
     email!: string;
-    role!: "admin" | "cashier";
-    extraPermissions!: permissions[];
+    role!: Role;
+    extraPermissions!: number;  // 32-bit hex permission flags
     passwordHash!: string;
-    createdAt!: Date;
-    updatedAt!: Date;
-    lastTouched!: Date;
-    lastTouchedBy!: IUser;
-    entityId?: string;
 
-    constructor(data?: Partial<IUser>) {
+    constructor(data?: Partial<User>) {
+        super(data, userRepository);
         if (data) {
-            Object.assign(this, data);
+            if (data.role === undefined) {
+                throw new Error("User role must be defined");
+            }
+            const normalizedRole: Role = typeof data.role === 'string'
+                ? (Roles.roles.find(r => r.name === data.role?.name) ?? DefaultRoles.cashier)
+                : (data.role as Role);
+
+            Object.assign(this, data, { role: normalizedRole });
         }
     }
 
+
     // Constructs a Class instance from a raw Redis OM Entity object
-    static fromEntity(entity: any): User | null {
-        if (!entity || !entity.entityId) return null;
+    fromEntity(entity: any): User | null {
+        // if (!entity || !entity.entityId) return null;
 
         let parsedUser: User | null = null;
-        if (entity.lastTouchedBy) {
+
+        let parsedRole: any = null;
+        if (entity.role) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedRole = typeof entity.role === 'string' ? JSON.parse(entity.role) : entity.role;
             } catch {
-                // Fallback if it is not stringified JSON (e.g. raw ID or string)
+                parsedRole = entity.role;
             }
         }
 
@@ -182,13 +222,13 @@ export class User implements IUser {
             id: entity.id,
             username: entity.username,
             email: entity.email,
-            role: entity.role,
+            role: parsedRole,
             extraPermissions: entity.extraPermissions,
             passwordHash: entity.passwordHash,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
+            touchedBy: parsedUser as any,
         });
         user.entityId = entity.entityId;
         return user;
@@ -200,40 +240,28 @@ export class User implements IUser {
             id: this.id,
             username: this.username,
             email: this.email,
-            role: this.role,
+            role: this.role ? this.role.name : null,
             extraPermissions: this.extraPermissions,
             passwordHash: this.passwordHash,
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
+            touchedBy: this.touchedBy ? JSON.stringify(this.touchedBy) : null,
         };
     }
 
-    // Static Finder Methods
-    static async byId(id: string): Promise<User | null> {
-        const entity = await userRepository.fetch(id);
-        return User.fromEntity(entity);
+    static getByUsername(username: string): Promise<User | null> {
+        return userRepository.search().where('username').equals(username).return.first().then(entity => new User().fromEntity(entity));
     }
 
-    static async byName(name: string): Promise<User[]> {
-        const entities = await userRepository.search().where('name').equals(name).returnAll();
-        return entities
-            .map(entity => User.fromEntity(entity))
-            .filter((user): user is User => user !== null);
-    }
 
-    static async getAll(): Promise<User[]> {
-        const entities = await userRepository.search().returnAll();
-        return entities
-            .map(entity => User.fromEntity(entity))
-            .filter((user): user is User => user !== null);
-    }
 
     // Instance Persistence Methods
-    async save(): Promise<User> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
+
+        log.debug("Saving user: " + JSON.stringify(data, null, 2));
 
         if (this.entityId) {
             // Update existing
@@ -253,5 +281,19 @@ export class User implements IUser {
             await userRepository.remove(this.entityId);
             this.entityId = undefined;
         }
+    }
+
+    // Permission checking helper
+    hasPermission(flag: number): boolean {
+        // Get the user's role permissions
+        log.trace(`Checking permission for user ${this.username}`);
+        log.trace(`User role: ${this.role.name}, extraPermissions: ${this.extraPermissions.toString(16)}, flag to check: ${flag.toString(16)}`);
+        log.trace(`User role: ${this.role.name}, extraPermissions: ${this.extraPermissions.toString(16)}, flag to check: ${flag.toString(16)}`);
+        const rolePermissions = Roles.roles.find(r => r.name === this.role.name)?.permissions ?? 0;
+        // Combine role permissions with extra permissions
+        const combinedPermissions = rolePermissions | this.extraPermissions;
+        // Check if the flag is set
+        log.trace(`Checking permission for user ${this.username}: rolePermissions=${rolePermissions.toString(16)}, extraPermissions=${this.extraPermissions.toString(16)}, combinedPermissions=${combinedPermissions.toString(16)}, flag=${flag.toString(16)}`);
+        return PermissionUtils.hasPermission(combinedPermissions, flag);
     }
 }

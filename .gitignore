@@ -1,4 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
@@ -41,5 +40,7 @@ dist/
 **/node_modules/**
 **/dist/**
 **/.logfire/**
+
 backend/.env
 backend/.env
+

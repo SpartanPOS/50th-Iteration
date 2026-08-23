@@ -1,8 +1,10 @@
-import type { IItem } from "./items.model";
-import type { IUser } from "./users.model";
+import type { Item } from "./items.model";
+import type { User } from "./users.model";
 import type { Category } from "./category.model";
+import { BaseModel } from "./primitives/base.model";
 import { Schema, Repository } from "redis-om";
 import redis from "../redis";
+import * as z from "zod";
 
 interface MenuActiveDate {
     startDate: Date;
@@ -12,13 +14,13 @@ interface MenuActiveDate {
 export interface IMenu {
     id: number;
     name: string;
-    items: IItem[];
+    items: Item[];
     categories: Category[];
     datesActive: MenuActiveDate[];
     createdAt: Date;
     updatedAt: Date;
     lastTouched: Date;
-    lastTouchedBy: IUser;
+    touchedBy: string | null;
 }
 
 const menuSchema = new Schema('Menu', {
@@ -30,48 +32,47 @@ const menuSchema = new Schema('Menu', {
     createdAt: { type: 'date' },
     updatedAt: { type: 'date' },
     lastTouched: { type: 'date' },
-    lastTouchedBy: { type: 'string' },
+    touchedBy: { type: 'string' },
 });
 
-export class Menu implements IMenu {
-    id!: number;
+const zMenuSchema = z.object({
+    id: z.number(),
+    name: z.string()
+    .min(1, { message: "Menu name cannot be empty" })
+    .max(20, { message: "Menu name cannot exceed 20 characters" }),
+    items: z.array(z.string()),
+    
+    categories: z.array(z.string()),
+    datesActive: z.array(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+    })),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    lastTouched: z.string(),
+    touchedBy: z.string(),
+});
+
+export class Menu extends BaseModel<Menu> {
     name!: string;
-    items!: IItem[];
+    items!: Item[];
     categories!: Category[];
     datesActive!: MenuActiveDate[];
-    createdAt!: Date;
-    updatedAt!: Date;
-    lastTouched!: Date;
-    lastTouchedBy!: IUser;
-    entityId?: string;
 
-    constructor(data?: Partial<IMenu>) {
+    constructor(data?: Partial<Menu>) {
+        super(data, menuRepository);
         if (data) {
             Object.assign(this, data);
         }
     }
 
-    static async getAll(): Promise<Menu[]> {
-        const entities = await menuRepository.search().returnAll();
-        return entities
-            .map(entity => Menu.fromEntity(entity))
-            .filter((menu): menu is Menu => menu !== null);
-    }
-
-    static async byId(id: string): Promise<Menu | null> {
-        const entity = await menuRepository.fetch(id);
-        return Menu.fromEntity(entity);
-    }
-
-
-
-    static fromEntity(entity: any): Menu | null {
+    fromEntity(entity: any): Menu | null {
         if (!entity || !entity.entityId) return null;
 
-        let parsedUser: IUser | null = null;
-        if (entity.lastTouchedBy) {
+        let parsedUser: User | null = null;
+        if (entity.touchedBy) {
             try {
-                parsedUser = JSON.parse(entity.lastTouchedBy);
+                parsedUser = JSON.parse(entity.touchedBy);
             } catch {
                 // Fallback if it is not stringified JSON (e.g. raw ID or string)
             }
@@ -86,7 +87,6 @@ export class Menu implements IMenu {
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
             lastTouched: entity.lastTouched,
-            lastTouchedBy: parsedUser as any,
         });
         menu.entityId = entity.entityId;
         return menu;
@@ -102,11 +102,10 @@ export class Menu implements IMenu {
             createdAt: this.createdAt,
             updatedAt: this.updatedAt,
             lastTouched: this.lastTouched,
-            lastTouchedBy: this.lastTouchedBy ? JSON.stringify(this.lastTouchedBy) : null,
         };
     }
 
-    async save(): Promise<Menu> {
+    async save(): Promise<this> {
         const data = this.toEntityData();
         let savedEntity;
 

@@ -101,7 +101,7 @@ function ItemsAvailable({ items, addToCart }: { items: Item[], addToCart: (item:
     const [activeCategory, setActiveCategory] = useState('');
 
     useEffect(() => {
-        fetch("http://localhost:8000/item/category/")
+        fetch("http://localhost:3000/categories/")
             .then(res => res.json())
             .then((data: { id: string, name: string }[]) => setCategories(data.map(category => {return {id: category.id, name: category.name}})));
     }, []);

@@ -1,6 +1,7 @@
 import { createClient } from 'redis'
 import { LogLayer } from "loglayer";
 import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
+import Redis from 'ioredis-mock';
 
 const log = new LogLayer({
     prefix: "[Redis Client]",
@@ -10,12 +11,16 @@ const log = new LogLayer({
     })
 });
 
-const redis = createClient()
-log.info('Initializing Redis client...')
-redis.on('error', (err) => log.error('Redis Client Error', err));
-if (process.env.NODE_ENV !== "test" && process.env.BUN_ENV !== "test") {
-    await redis.connect()
+const isTestEnv = process.env.NODE_ENV === "test" || process.env.BUN_ENV === "test";
+
+const redis: any = isTestEnv ? new Redis() : createClient();
+
+if (isTestEnv) {
+    log.info('Skipping Redis connection in test environment...');
+} else {
+    log.info('Initializing Redis client...');
+    redis.on('error', (err: Error) => log.error('Redis Client Error', err.message));
+    await redis.connect();
 }
-// Wait until client is ready
 
 export default redis
