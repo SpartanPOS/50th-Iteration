@@ -37,24 +37,7 @@ export class AdminController extends BaseController {
     **/
     @Post("/items/add", 2)
     async addItems(req: Request): Promise<Response> {
-        const json: { items?: unknown, categories?: unknown, menu?: unknown, sku: string } = await req.json();
-        const items = json.items;
-        const categories = json.categories;
-        const menu = json.menu;
-        const sku = json.sku ?? "MISC-" + Math.floor(Math.random() * 1000)
-
-
-
-        // const auth = req.headers.get("Authorization");
-        // if (!auth) {
-            
-        //     return Response.json({ success: false, message: "Unauthorized" }, { status: 401 });
-        // }
-        // const user = await (User as any).verify(auth);
-        // if (!user) {
-        //     return Response.json({ success: false, message: "Unauthorized" }, { status: 401 });
-        // }
-
+        const item = await req.json() as { name: string, description?: string, price?: number, category: Category, sku?: string };
         try {
                 const { name, description, price, category, sku } = item;
                 const newSku = sku ?? "MISC-" + Math.floor(Math.random() * 1000)
