@@ -89,4 +89,3 @@ export class Category extends BaseModel<Category> {
         }
     }
 }
-

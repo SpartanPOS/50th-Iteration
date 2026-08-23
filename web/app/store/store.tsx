@@ -50,13 +50,17 @@ function Store() {
 		setCartItems(previousItems => previousItems.filter(item => item.id !== id));
 	}
 
+	let mainContent = ItemsAvailable({ items: sampleItems, addToCart });
+
 	return (
 		<div id='top-container' className={styles.topMargin}>
-			<LockScreen />
 			<Grid >
 				<SideCart items={CartItems} updateQuantity={updateQuantity} removeItem={removeItem} />
-				<SideActions />
-				<ItemsAvailable items={sampleItems} addToCart={addToCart} />
+				<SideActions handlePayNow={() => { console.log('Pay Now clicked'); }} />
+				{
+					mainContent
+				}
+				{/* <ItemsAvailable items={sampleItems} addToCart={addToCart} /> */}
 			</Grid>
 		</div>
 	);
