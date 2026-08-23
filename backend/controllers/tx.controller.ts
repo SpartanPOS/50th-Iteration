@@ -5,7 +5,11 @@ import { kafka } from "../events/kafka";
 import { randomUUIDv7 } from "bun";
 import type { Producer } from "kafkajs";
 import { Partitioners } from "kafkajs";
+import stripe, { Stripe } from "stripe";
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+    typescript: true,
+});
 
 
 @Controller("/tx")

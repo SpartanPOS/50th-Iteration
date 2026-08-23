@@ -39,3 +39,4 @@ dist/
 **/node_modules/**
 **/dist/**
 **/.logfire/**
+backend/.env
