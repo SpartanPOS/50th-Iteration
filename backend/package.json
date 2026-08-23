@@ -16,6 +16,7 @@
     "loglayer": "^9.3.0",
     "redis": "^6.0.0",
     "redis-om": "^0.4.7",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "stripe": "^22.5.0"
   }
 }
