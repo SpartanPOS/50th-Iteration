@@ -44,7 +44,7 @@ function CategoryTabs({ Categories, activeCategory, setActiveCategory }: { Categ
         <div>
             <ul className="flex flex-wrap text-sm font-medium text-center *:border *:border-solid *:border-neutral-300 *:rounded-t-lg *:bg-amber-100 text-body" data-tabs-toggle="#default-styled-tab-content" role="tablist">
                 {Categories.map((category) => {
-                    const categorySlug = String(category).toLowerCase().replace(/\s+/g, '-');
+                    const categorySlug = String(category).toLowerCase().replace(/\s+/g, '-' + Math.random().toString(36).substring(2, 7)); // Ensure unique ID for each category
 
                     return (
                         <li className="me-2 has-active:bg-green-100" role="presentation" key={categorySlug}>
@@ -81,7 +81,7 @@ function CategoryPanel({ items, categories, activeCategory, addToCart }: { items
     return (
         <div className="mt-4" >
             {categories.map(category => {
-                const categorySlug = String(category.name).toLowerCase().replace(/\s+/g, '-');
+                const categorySlug = String(category.name).toLowerCase().replace(/\s+/g, '-'+ Math.random().toString(36).substring(2, 7)); // Ensure unique ID for each category
 
                 return (
                         <div  key={category.id} id={categorySlug} role="tabpanel" style={style} aria-labelledby={`${categorySlug}-tab`} className={activeCategory === category.id ? '' : 'hidden' + ' grid-cols-5 gap-4 auto-rows-[minmax(100px,auto)]' } >

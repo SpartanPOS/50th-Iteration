@@ -1,7 +1,6 @@
 import { createClient } from 'redis'
 import { LogLayer } from "loglayer";
 import { getSimplePrettyTerminal } from "@loglayer/transport-simple-pretty-terminal";
-import Redis from 'ioredis-mock';
 
 const log = new LogLayer({
     prefix: "[Redis Client]",
