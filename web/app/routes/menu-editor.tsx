@@ -3,6 +3,7 @@ import Button from "~/components/base/Button";
 import styles from '~/components/styling/Grid.module.css';
 import { Grid } from "~/components/grid";
 import ClickableList from "~/components/base/clickable-list";
+import LockScreen from "~/store/lock";
 
 export default function MenuEditor() {
 
@@ -22,23 +23,45 @@ export default function MenuEditor() {
                 return data.map(item => { return { id: item.id, name: item.name, price: item.price } });
             });
 
-        setEditingField(menuItems.length > 0 ? { name: menuItems[0].name, price: menuItems[0].price } : null);
+        setEditingField(
+            data.length > 0
+                ? { name: data[0].name, price: data[0].price, id: data[0].id }
+                : null
+        );
         return data;
     }
 
-    async function modifyMenuItem(itemId: string) {
+    react.useEffect(() => {
+        console.log("editingField changed:", editingField);
+    }, [editingField]);
+
+    async function setEditItem(itemId: string) {
         const item = await getMenuItems().then(data => data.find(item => item.id === itemId));
         if (item) {
-            setEditingField({ name: item.name, price: item.price } as ItemForm);
+            setEditingField({ name: item.name, price: item.price, id: item.id } as ItemForm);
+            if (!editingField) {
+                console.error(`Error: ${editingField} is null when trying to set edit item with id ${itemId}`);
+            }
         } else {
             console.error(`Item with id ${itemId} not found`);
         }
 
     }
 
+    function modifyMenuItem(itemId: string, method: 'PUT' | 'DELETE', body?: ItemForm ) {
+        fetch(`http://localhost:3000/items/${itemId}`, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: body ? JSON.stringify(body) : undefined,
+        });
+    }
+
     function MenuList() {
         return (
-            <ClickableList interact={index => modifyMenuItem(menuItems[index].id)}>
+            <ClickableList interact={index => setEditItem(menuItems[index].id)}>
                 {menuItems.map(item => (
                     <div key={item.id}>
                         <span>{item.name}</span>
@@ -53,25 +76,29 @@ export default function MenuEditor() {
         void getMenuItems().then(setMenuItems);
     }, []);
 
-    function submitChanges() {
-        if (editingField) {
-            fetch(`http://localhost:3000/items/${editingField.id}`, {
-                method: 'PUT',
+
+    async function deleteItem() {
+        
+        if (editingField && editingField.id) {
+            await fetch(`http://localhost:3000/items/${editingField.id}`, {
+                method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 },
-                body: JSON.stringify(editingField),
             });
+            console.log(`Deleted item with id ${editingField.id}`);
+            setMenuItems(prevItems => prevItems.filter(item => item.id !== editingField.id));
+            setEditingField(null);
+        } else {
+            console.error('No item selected for deletion');
         }
     }
 
     function ActionButtons() {
         return (
             <div className={` ${styles.sideActions} grid grid-cols-2 grid-rows-3 gap-2 max-h-100 `} id='side-actions'>
-                <Button className="bg-blue-500 text-white px-4 py-2 rounded">Add Item</Button>
-                <Button className="bg-yellow-500 text-white px-4 py-2 rounded">Edit Item</Button>
-                <Button className="bg-red-500 text-white px-4 py-2 rounded">Delete Item</Button>
+                <Button  className="bg-blue-500 text-white px-4 py-2 rounded">Add Item</Button>
+                <Button type="button" onClick={deleteItem} className="bg-red-500 text-white px-4 py-2 rounded">Delete Item</Button>
                 <Button className="bg-green-500 text-white px-4 py-2 rounded">Save Menu</Button>
             </div>
         );
@@ -90,17 +117,18 @@ export default function MenuEditor() {
                         <label className="block mb-1">Price</label>
                         <input type="number" step="0.01" className="w-full p-2 border rounded" value={editingField?.price || ''} onChange={(e) => setEditingField({ ...editingField, price: parseFloat(e.target.value) || 0 } as ItemForm)} />
                     </div>
-                    <Button type="submit" onSubmit={submitChanges} className="bg-green-500 text-white px-4 py-2 rounded">Save Changes</Button>
+                    <ActionButtons />
+
                 </form>
             </div>
         );
     }
 
     return (
-        <Grid>
-            <MenuList />
-            <ActionButtons />
-            <ItemEditForm />
-        </Grid>
+            <Grid>
+                <LockScreen />
+                <MenuList />
+                <ItemEditForm />
+            </Grid>
     );
 }

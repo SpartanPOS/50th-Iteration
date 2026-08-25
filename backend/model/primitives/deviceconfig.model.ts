@@ -1,6 +1,6 @@
 import type { IMenu } from "../menu.model";
 import type { IUser } from "../users.model";
-import type { Item } from "../items.model";
+import type { Item } from "../item.model";
 import type { IStore } from "../store.model";
 import type { Category } from "../category.model";
 

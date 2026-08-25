@@ -1,6 +1,6 @@
 import { log } from '../index';
-import { Controller, Get } from '../decorator';
-import { Item } from '../model/items.model';
+import { Controller, Get, Delete } from '../decorator';
+import { items } from '../model/items.model';
 import { BaseController } from './primitives/base.controller';
 
 @Controller('/items')
@@ -11,7 +11,7 @@ export class ItemController extends BaseController {
 
     @Get('/', 0)
     async getAllItems(_req?: Request) {
-        const data = await Item.getAll();
+        const data = await items.getAll();
         log.trace(`Get all items: ${data}`);
         await this.kafka([{
             key: "item.getAll",
@@ -27,7 +27,7 @@ export class ItemController extends BaseController {
         if (!itemId) {
             return Response.json({ error: 'Missing item id' }, { status: 400 });
         }
-        const item = await Item.byId(itemId)
+        const item = await items.getById(itemId)
         log.withMetadata({ itemId, item }).trace('Get item by ID result');
         await this.kafka([{
             key: "item.getById",
@@ -35,5 +35,24 @@ export class ItemController extends BaseController {
         }]);
         
         return Response.json(item)
+    }
+
+    @Delete('/:id', 1)
+    async deleteItem(_req: Request, params?: Record<string, string>) {
+        const itemId = params?.id;
+        log.withMetadata({ itemId }).trace('Delete item by ID');
+        if (!itemId) {
+            return Response.json({ error: 'Missing item id' }, { status: 400 });
+        }
+        const deleted = await items.deleteById(itemId);
+        if (!deleted) {
+            return Response.json({ error: 'Item not found' }, { status: 404 });
+        }
+        log.withMetadata({ itemId }).trace('Item deleted');
+        await this.kafka([{
+            key: "item.delete",
+            value: itemId
+        }]);
+        return Response.json({ message: 'Item deleted successfully' });
     }
 }

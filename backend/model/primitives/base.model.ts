@@ -76,6 +76,7 @@ export abstract class BaseModel<T extends IModel> implements IModel {
         return "name";
     }
 
+
     async getAll(): Promise<T[]> {
         if (!this.repository) {
             throw new Error("Repository is not configured for this model");

@@ -29,7 +29,7 @@ export default function ClickableList({ children, itemActionButtons, interact, o
     }
 
     return (
-        <div className="border-radius-10">
+        <div className="border-radius-10 overflow-scroll">
             <div className={styles.sideList} id='sidecart'>
                 {itemActionButtons ? (
                     <div className={styles.itemModButtons} onClickCapture={clearActiveIndex}>

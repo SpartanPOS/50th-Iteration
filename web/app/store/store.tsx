@@ -10,6 +10,7 @@ import LockScreen from './lock';
 function Store() {
 	const [CartItems, setCartItems] = useState<Item[]>([]);
 	const [sampleItems, setSampleItems] = useState<Item[]>([]);
+	let [mainContent, setMainContent] = useState<React.ReactNode>(<ItemsAvailable items={sampleItems} addToCart={addToCart} />);
 
 	useEffect(() => {
 		fetch('http://localhost:3000/items')
@@ -50,14 +51,86 @@ function Store() {
 		setCartItems(previousItems => previousItems.filter(item => item.id !== id));
 	}
 
-	let mainContent = ItemsAvailable({ items: sampleItems, addToCart });
+
+
+
+	function PayScreen() {
+
+		return (
+			<div className={styles.payScreen} id='pay-screen'>
+				<h2>Payment Screen</h2>
+				<p>Implement payment processing here.</p>
+				<button onClick={() => {
+					console.log('Payment processed');
+				}}>Process Payment</button>
+			</div>
+		);
+	}
+
+	async function handlePayNow() {
+		setMainContent(<PayScreen />);
+		const intent = await fetch('http://localhost:3000/tx/new', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				amount: 1000,
+				currency: 'usd',
+				payment_method_types: ['card_present'],
+				capture_method: 'automatic',
+				payment_method_options: {
+				card_present: {
+					capture_method: 'manual_preferred'
+				}
+				}
+			}),
+			});
+			const intentData = await intent.json();
+			console.log('Payment Intent created:', intentData);
+
+			await fetch('http://localhost:3000/tx/simulate', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					payment_intent_id: intentData.data,
+					card_number: '4242424242424242', // Replace with actual card number
+					reader_id: intentData.reader_id, // Replace with actual reader ID
+				}),
+			});
+
+			const processResponse = await fetch('http://localhost:3000/tx/process', {
+				method: 'POST',
+				headers: {
+				'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+				payment_intent_id: intentData.data,
+				reader_id: intentData.reader_id, // Replace with actual reader ID
+				}),
+			});
+
+			const processData = await processResponse.json();
+
+		
+			console.log('Reader payment completed:', processData);
+
+			setTimeout(() => {
+				setMainContent(<ItemsAvailable items={sampleItems} addToCart={addToCart} />);
+				setCartItems([]);
+			}, 3000);
+		
+	}
+		
 
 	return (
-		<div id='top-container' className={styles.topMargin}>
+		<div id='top-container'>
 			<LockScreen />
 			<Grid >
 				<SideCart items={CartItems} updateQuantity={updateQuantity} removeItem={removeItem} />
-				<SideActions handlePayNow={() => { console.log('Pay Now clicked'); }} />
+				<SideActions handlePayNow={handlePayNow} />
 				{
 					mainContent
 				}
